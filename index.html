@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Unlocked Stage — Free Concerts in Toronto</title>
-  <meta name="description" content="Discover free live concerts and performances happening across Toronto. Coming soon." />
+  <meta name="description" content="Discover free live concerts and performances happening across Toronto. Updated weekly." />
   <meta property="og:title" content="Unlocked Stage — Free Concerts in Toronto" />
-  <meta property="og:description" content="Discover the concerts happening in your neighbourhood. Coming soon." />
+  <meta property="og:description" content="Discover the concerts happening in your neighbourhood." />
   <meta property="og:type" content="website" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -17,19 +17,21 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --ink:    #0d0d0d;
-      --paper:  #f5f0e8;
-      --cream:  #ede8df;
-      --accent: #c8402a;
-      --muted:  #8a847a;
-      --border: #ccc8c0;
+      --ink:      #0d0d0d;
+      --paper:    #f5f0e8;
+      --cream:    #ede8df;
+      --accent:   #c8402a;
+      --accent2:  #2a6b4a;
+      --muted:    #8a847a;
+      --border:   #ccc8c0;
+      --card-bg:  #faf7f2;
 
       --font-display: 'Playfair Display', Georgia, serif;
       --font-mono:    'DM Mono', monospace;
       --font-body:    'DM Sans', sans-serif;
     }
 
-    html, body { height: 100%; }
+    html { scroll-behavior: smooth; }
 
     body {
       background: var(--paper);
@@ -37,10 +39,10 @@
       font-family: var(--font-body);
       font-size: 15px;
       line-height: 1.6;
-      display: flex;
-      flex-direction: column;
       min-height: 100vh;
       overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
     }
 
     /* noise */
@@ -55,23 +57,6 @@
       background-size: 200px 200px;
     }
 
-    /* watermark */
-    body::after {
-      content: 'SOON';
-      position: fixed;
-      right: -0.04em;
-      bottom: -0.08em;
-      font-family: var(--font-display);
-      font-size: clamp(8rem, 22vw, 20rem);
-      font-weight: 700;
-      color: transparent;
-      -webkit-text-stroke: 1px var(--border);
-      pointer-events: none;
-      line-height: 1;
-      letter-spacing: -0.04em;
-      z-index: 0;
-    }
-
     /* ── HEADER ─────────────────────────────────────────────── */
     header {
       padding: 1.75rem clamp(1.5rem, 5vw, 4rem);
@@ -80,7 +65,8 @@
       justify-content: space-between;
       border-bottom: 1px solid var(--border);
       position: relative;
-      z-index: 1;
+      z-index: 10;
+      background: var(--paper);
     }
 
     .logo {
@@ -107,27 +93,27 @@
 
     .logo-mark svg { width: 13px; height: 13px; fill: #fff; }
 
-    .coming-soon-badge {
-      font-family: var(--font-mono);
-      font-size: 0.68rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--accent);
-      border: 1px solid var(--accent);
-      padding: 0.3rem 0.75rem;
-      border-radius: 100px;
+    /* ── HERO ───────────────────────────────────────────────── */
+    .hero {
+      padding: clamp(4rem, 10vw, 7rem) clamp(1.5rem, 5vw, 4rem) clamp(3rem, 6vw, 5rem);
+      border-bottom: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
     }
 
-    /* ── MAIN ───────────────────────────────────────────────── */
-    main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      padding: clamp(4rem, 10vw, 8rem) clamp(1.5rem, 5vw, 4rem);
-      position: relative;
-      z-index: 1;
-      max-width: 900px;
+    .hero::after {
+      content: 'FREE';
+      position: absolute;
+      right: -0.04em;
+      bottom: -0.1em;
+      font-family: var(--font-display);
+      font-size: clamp(6rem, 18vw, 16rem);
+      font-weight: 700;
+      color: transparent;
+      -webkit-text-stroke: 1px var(--border);
+      pointer-events: none;
+      line-height: 1;
+      letter-spacing: -0.04em;
     }
 
     .eyebrow {
@@ -153,7 +139,7 @@
 
     h1 {
       font-family: var(--font-display);
-      font-size: clamp(2.8rem, 7vw, 6.5rem);
+      font-size: clamp(2.8rem, 6vw, 5.5rem);
       font-weight: 400;
       line-height: 1.05;
       letter-spacing: -0.025em;
@@ -161,108 +147,269 @@
       animation: fadeUp 0.55s ease 0.08s both;
     }
 
-    h1 em {
-      font-style: italic;
-      color: var(--accent);
-    }
+    h1 em { font-style: italic; color: var(--accent); }
 
-    .description {
+    .hero-description {
       font-size: 1rem;
       color: var(--muted);
-      margin-top: 1.75rem;
+      margin-top: 1.5rem;
       max-width: 46ch;
       line-height: 1.75;
       animation: fadeUp 0.55s ease 0.16s both;
     }
 
-    /* ── EMAIL FORM ─────────────────────────────────────────── */
-    .notify-form {
-      margin-top: 2.5rem;
+    /* ── FILTER BAR ─────────────────────────────────────────── */
+    .filters {
+      padding: 1.1rem clamp(1.5rem, 5vw, 4rem);
+      border-bottom: 1px solid var(--border);
       display: flex;
-      gap: 0;
-      max-width: 420px;
-      animation: fadeUp 0.55s ease 0.24s both;
-    }
-
-    .notify-form input {
-      flex: 1;
-      font-family: var(--font-body);
-      font-size: 0.9rem;
-      background: var(--cream);
-      border: 1px solid var(--border);
-      border-right: none;
-      color: var(--ink);
-      padding: 0.75rem 1.1rem;
-      border-radius: 2px 0 0 2px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    .notify-form input::placeholder { color: var(--muted); }
-    .notify-form input:focus { border-color: var(--ink); }
-
-    .notify-form button {
-      font-family: var(--font-mono);
-      font-size: 0.72rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      background: var(--ink);
-      color: var(--paper);
-      border: 1px solid var(--ink);
-      padding: 0.75rem 1.4rem;
-      border-radius: 0 2px 2px 0;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: background 0.2s;
-    }
-
-    .notify-form button:hover { background: var(--accent); border-color: var(--accent); }
-
-    .notify-confirm {
-      display: none;
-      font-family: var(--font-mono);
-      font-size: 0.75rem;
-      letter-spacing: 0.06em;
-      color: var(--accent);
-      margin-top: 0.85rem;
-    }
-
-    /* ── DIVIDER ────────────────────────────────────────────── */
-    .divider {
-      width: clamp(1.5rem, 5vw, 4rem);
-      height: 1px;
-      background: var(--border);
-      margin: 3rem 0 2.5rem;
-      animation: fadeUp 0.55s ease 0.3s both;
-    }
-
-    /* ── FEATURES ───────────────────────────────────────────── */
-    .features {
-      display: flex;
-      gap: 3rem;
+      align-items: center;
+      gap: 0.5rem;
       flex-wrap: wrap;
-      animation: fadeUp 0.55s ease 0.36s both;
+      background: var(--cream);
+      position: sticky;
+      top: 0;
+      z-index: 9;
     }
 
-    .feature {
-      display: flex;
-      flex-direction: column;
-      gap: 0.3rem;
-    }
-
-    .feature-label {
+    .filter-label {
       font-family: var(--font-mono);
       font-size: 0.68rem;
       letter-spacing: 0.1em;
       text-transform: uppercase;
       color: var(--muted);
+      margin-right: 0.25rem;
     }
 
-    .feature-value {
-      font-family: var(--font-display);
-      font-size: 1.05rem;
-      font-weight: 400;
+    .filter-btn {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 0.3rem 0.85rem;
+      border-radius: 100px;
+      cursor: pointer;
+      transition: all 0.18s;
     }
+
+    .filter-btn:hover,
+    .filter-btn.active {
+      background: var(--ink);
+      border-color: var(--ink);
+      color: var(--paper);
+    }
+
+    /* ── EVENTS SECTION ─────────────────────────────────────── */
+    .events-section {
+      padding: clamp(2rem, 4vw, 3rem) clamp(1.5rem, 5vw, 4rem);
+      flex: 1;
+    }
+
+    .events-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 1.75rem;
+    }
+
+    .events-header h2 {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-weight: 400;
+      letter-spacing: -0.01em;
+    }
+
+    .events-count {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+    }
+
+    /* ── EVENTS GRID ────────────────────────────────────────── */
+    .events-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+      gap: 1.5px;
+      border: 1.5px solid var(--border);
+    }
+
+    /* ── EVENT CARD ─────────────────────────────────────────── */
+    .event-card {
+      background: var(--card-bg);
+      padding: 1.6rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+      text-decoration: none;
+      color: inherit;
+      transition: background 0.2s;
+      position: relative;
+      overflow: hidden;
+      animation: fadeUp 0.4s ease both;
+    }
+
+    .event-card:hover { background: #fff; }
+    .event-card:hover .card-arrow { opacity: 1; transform: translate(0, 0); }
+
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .card-date-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--ink);
+      color: var(--paper);
+      width: 50px;
+      height: 50px;
+      flex-shrink: 0;
+      border-radius: 3px;
+    }
+
+    .card-date-block .month {
+      font-family: var(--font-mono);
+      font-size: 0.58rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      opacity: 0.65;
+      line-height: 1;
+      padding-top: 0.25rem;
+    }
+
+    .card-date-block .day {
+      font-family: var(--font-display);
+      font-size: 1.4rem;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+
+    .card-genre {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #fff;
+      padding: 0.2rem 0.5rem;
+      border-radius: 2px;
+      align-self: flex-start;
+    }
+
+    .card-artist {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+    }
+
+    .card-venue-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .card-venue-row svg {
+      width: 12px;
+      height: 12px;
+      flex-shrink: 0;
+      stroke: var(--muted);
+    }
+
+    .card-image {
+      width: 100%;
+      aspect-ratio: 16 / 7;
+      object-fit: cover;
+      border-radius: 2px;
+      display: block;
+    }
+
+    .card-notes {
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.6;
+      border-top: 1px solid var(--border);
+      padding-top: 0.75rem;
+    }
+
+    .card-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--border);
+      margin-top: auto;
+    }
+
+    .card-time {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+
+    .card-hood {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 0.15rem 0.5rem;
+    }
+
+    .card-arrow {
+      position: absolute;
+      top: 1.4rem;
+      right: 1.4rem;
+      opacity: 0;
+      transform: translate(-4px, 4px);
+      transition: all 0.2s;
+    }
+
+    .card-arrow svg {
+      width: 15px;
+      height: 15px;
+      stroke: var(--accent);
+    }
+
+    /* ── LOADING / EMPTY / ERROR ────────────────────────────── */
+    .state-message {
+      grid-column: 1 / -1;
+      padding: 4rem 2rem;
+      text-align: center;
+      background: var(--card-bg);
+    }
+
+    .state-message p {
+      font-family: var(--font-display);
+      font-style: italic;
+      font-size: 1.1rem;
+      color: var(--muted);
+    }
+
+    .state-message .spinner {
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto 1rem;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ── FOOTER ─────────────────────────────────────────────── */
     footer {
@@ -273,9 +420,6 @@
       justify-content: space-between;
       gap: 1rem;
       flex-wrap: wrap;
-      position: relative;
-      z-index: 1;
-      animation: fadeUp 0.55s ease 0.42s both;
     }
 
     .footer-copy {
@@ -302,24 +446,22 @@
 
     .footer-links a:hover { color: var(--ink); }
 
-    /* ── ANIMATION ──────────────────────────────────────────── */
+    /* ── ANIMATIONS ─────────────────────────────────────────── */
     @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(14px); }
+      from { opacity: 0; transform: translateY(12px); }
       to   { opacity: 1; transform: translateY(0); }
     }
 
     /* ── RESPONSIVE ─────────────────────────────────────────── */
     @media (max-width: 600px) {
-      .notify-form { flex-direction: column; }
-      .notify-form input { border-right: 1px solid var(--border); border-bottom: none; border-radius: 2px 2px 0 0; }
-      .notify-form button { border-radius: 0 0 2px 2px; text-align: center; }
-      .features { gap: 2rem; }
+      .filters { gap: 0.4rem; }
       footer { flex-direction: column; align-items: flex-start; }
     }
   </style>
 </head>
 <body>
 
+  <!-- HEADER -->
   <header>
     <a href="#" class="logo">
       <span class="logo-mark">
@@ -327,42 +469,45 @@
       </span>
       Unlocked Stage
     </a>
-    <span class="coming-soon-badge">Coming Soon</span>
   </header>
 
-  <main>
+  <!-- HERO -->
+  <section class="hero">
     <p class="eyebrow">Toronto · Free &amp; Live</p>
-
     <h1>Discover the concerts happening in your <em>neighbourhood.</em></h1>
+    <p class="hero-description">A curated calendar of free concerts and live performances happening across Toronto's neighbourhoods — updated weekly.</p>
+  </section>
 
-    <p class="description">A curated calendar of free concerts and live performances happening across Toronto's neighbourhoods — updated weekly.</p>
+  <!-- FILTERS -->
+  <div class="filters">
+    <span class="filter-label">Genre:</span>
+    <button class="filter-btn active" data-filter="all">All</button>
+    <button class="filter-btn" data-filter="jazz">Jazz</button>
+    <button class="filter-btn" data-filter="indie">Indie</button>
+    <button class="filter-btn" data-filter="classical">Classical</button>
+    <button class="filter-btn" data-filter="folk">Folk</button>
+    <button class="filter-btn" data-filter="electronic">Electronic</button>
+    <button class="filter-btn" data-filter="rb">R&amp;B</button>
+    <button class="filter-btn" data-filter="pop">Pop</button>
+    <button class="filter-btn" data-filter="hiphop">Hip-Hop</button>
+    <button class="filter-btn" data-filter="other">Other</button>
+  </div>
 
-    <!-- NOTIFY FORM — commented out, may return later
-    <div class="notify-form">
-      <input type="email" id="email-input" placeholder="Your email address" autocomplete="email" />
-      <button onclick="handleNotify()">Notify me</button>
+  <!-- EVENTS -->
+  <section class="events-section">
+    <div class="events-header">
+      <h2>Upcoming Events</h2>
+      <span class="events-count" id="events-count"></span>
     </div>
-    <p class="notify-confirm" id="notify-confirm">✓ You're on the list. We'll be in touch soon.</p>
-    -->
-
-    <div class="divider"></div>
-
-    <div class="features">
-      <div class="feature">
-        <span class="feature-label">What</span>
-        <span class="feature-value">Free concerts, curated weekly</span>
-      </div>
-      <div class="feature">
-        <span class="feature-label">Where</span>
-        <span class="feature-value">Across Toronto's neighbourhoods</span>
-      </div>
-      <div class="feature">
-        <span class="feature-label">Cost</span>
-        <span class="feature-value">Always free to attend</span>
+    <div class="events-grid" id="events-grid">
+      <div class="state-message">
+        <div class="spinner"></div>
+        <p>Loading events…</p>
       </div>
     </div>
-  </main>
+  </section>
 
+  <!-- FOOTER -->
   <footer>
     <span class="footer-copy">© 2026 Unlocked Stage · Toronto, ON</span>
     <div class="footer-links">
@@ -373,24 +518,139 @@
   </footer>
 
   <script>
-    function handleNotify() {
-      const input = document.getElementById('email-input');
-      const confirm = document.getElementById('notify-confirm');
-      const email = input.value.trim();
-      if (!email || !email.includes('@')) {
-        input.style.borderColor = '#c8402a';
-        input.focus();
-        setTimeout(() => input.style.borderColor = '', 1200);
-        return;
-      }
-      // TODO: wire up to your mailing list
-      input.closest('.notify-form').style.display = 'none';
-      confirm.style.display = 'block';
+    /* ── SANITY CONFIG ──────────────────────────────────────── */
+    const SANITY_PROJECT_ID = '7txzz67e';
+    const SANITY_DATASET    = 'production';
+    const SANITY_API_VER    = '2024-01-01';
+
+    // Builds a Sanity image URL from a reference object
+    function sanityImageUrl(ref) {
+      if (!ref || !ref.asset || !ref.asset._ref) return null;
+      const [, id, dimensions, ext] = ref.asset._ref.split('-');
+      return `https://cdn.sanity.io/images/${SANITY_PROJECT_ID}/${SANITY_DATASET}/${id}-${dimensions}.${ext}`;
     }
 
-    document.getElementById('email-input').addEventListener('keydown', e => {
-      if (e.key === 'Enter') handleNotify();
+    // Fetch all upcoming events from Sanity, ordered by date ascending
+    async function fetchEvents() {
+      const query = encodeURIComponent(
+        `*[_type == "event" && dateTime >= now()] | order(dateTime asc) {
+          _id, artist, genre, dateTime, venue, neighbourhood, externalLink, notes,
+          image { asset { _ref } }
+        }`
+      );
+      const url = `https://${SANITY_PROJECT_ID}.api.sanity.io/v${SANITY_API_VER}/data/query/${SANITY_DATASET}?query=${query}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Sanity API error: ${res.status}`);
+      const data = await res.json();
+      return data.result;
+    }
+
+    /* ── GENRE COLOURS ──────────────────────────────────────── */
+    const genreColors = {
+      jazz:       '#2a6b4a',
+      folk:       '#7a5c2a',
+      indie:      '#3a4f7a',
+      classical:  '#5a2a6b',
+      electronic: '#1a5f6b',
+      rb:         '#8a2a3a',
+      pop:        '#6b4a2a',
+      hiphop:     '#2a4a6b',
+      other:      '#555',
+    };
+
+    /* ── FORMAT DATE ────────────────────────────────────────── */
+    function formatDate(iso) {
+      const d = new Date(iso);
+      return {
+        month: d.toLocaleString('en-CA', { month: 'short' }),
+        day:   d.getDate(),
+        time:  d.toLocaleString('en-CA', { hour: 'numeric', minute: '2-digit', hour12: true }),
+      };
+    }
+
+    /* ── RENDER ─────────────────────────────────────────────── */
+    let allEvents = [];
+    let activeFilter = 'all';
+
+    function renderEvents() {
+      const grid = document.getElementById('events-grid');
+      const countEl = document.getElementById('events-count');
+
+      const filtered = activeFilter === 'all'
+        ? allEvents
+        : allEvents.filter(e => e.genre === activeFilter);
+
+      countEl.textContent = `${filtered.length} event${filtered.length !== 1 ? 's' : ''}`;
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `<div class="state-message"><p>No upcoming events for this genre — check back soon.</p></div>`;
+        return;
+      }
+
+      grid.innerHTML = filtered.map((e, i) => {
+        const { month, day, time } = formatDate(e.dateTime);
+        const color   = genreColors[e.genre] || '#555';
+        const imgUrl  = sanityImageUrl(e.image);
+        const tag     = e.externalLink ? 'a' : 'div';
+        const attrs   = e.externalLink
+          ? `href="${e.externalLink}" target="_blank" rel="noopener"`
+          : '';
+
+        return `
+          <${tag} class="event-card" ${attrs} style="animation-delay:${i * 0.05}s">
+            <div class="card-top">
+              <div class="card-date-block">
+                <span class="month">${month}</span>
+                <span class="day">${day}</span>
+              </div>
+              <span class="card-genre" style="background:${color}">${e.genre}</span>
+            </div>
+            <div class="card-artist">${e.artist}</div>
+            <div class="card-venue-row">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+              ${e.venue}
+            </div>
+            ${imgUrl ? `<img class="card-image" src="${imgUrl}" alt="${e.artist} at ${e.venue}" loading="lazy" />` : ''}
+            ${e.notes ? `<p class="card-notes">${e.notes}</p>` : ''}
+            <div class="card-meta">
+              <span class="card-time">${time}</span>
+              <span class="card-hood">${e.neighbourhood}</span>
+            </div>
+            ${e.externalLink ? `
+            <span class="card-arrow">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/>
+              </svg>
+            </span>` : ''}
+          </${tag}>`;
+      }).join('');
+    }
+
+    /* ── FILTER BUTTONS ─────────────────────────────────────── */
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeFilter = btn.dataset.filter;
+        renderEvents();
+      });
     });
+
+    /* ── INIT ───────────────────────────────────────────────── */
+    fetchEvents()
+      .then(events => {
+        allEvents = events;
+        renderEvents();
+      })
+      .catch(err => {
+        console.error(err);
+        document.getElementById('events-grid').innerHTML =
+          `<div class="state-message"><p>Couldn't load events right now — please try again shortly.</p></div>`;
+        document.getElementById('events-count').textContent = '';
+      });
   </script>
 </body>
 </html>
