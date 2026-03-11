@@ -295,20 +295,20 @@
       justify-content: center;
       background: var(--ink);
       color: var(--paper);
-      width: 50px;
-      height: 50px;
+      width: 56px;
+      height: 62px;
       flex-shrink: 0;
       border-radius: 3px;
+      padding: 0.3rem 0;
     }
 
     .card-date-block .month {
       font-family: var(--font-mono);
-      font-size: 0.58rem;
+      font-size: 0.55rem;
       letter-spacing: 0.1em;
       text-transform: uppercase;
       opacity: 0.65;
       line-height: 1;
-      padding-top: 0.25rem;
     }
 
     .card-date-block .day {
@@ -316,6 +316,15 @@
       font-size: 1.4rem;
       font-weight: 700;
       line-height: 1.1;
+    }
+
+    .card-date-block .weekday {
+      font-family: var(--font-mono);
+      font-size: 0.52rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      opacity: 0.55;
+      line-height: 1;
     }
 
     .card-genre {
@@ -537,11 +546,11 @@
     <div class="footer-links">
       <a href="https://instagram.com/unlocked_stage" target="_blank" rel="noopener">Instagram</a>
       <a href="https://facebook.com/unlockedstage" target="_blank" rel="noopener">Facebook</a>
-      <a href="mailto:hello@unlockedstage.ca">Contact</a>
+      <a href="/cdn-cgi/l/email-protection#5a323f3636351a2f34363539313f3e292e3b3d3f74393b">Contact</a>
     </div>
   </footer>
 
-  <script>
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
     /* ── SANITY CONFIG ──────────────────────────────────────── */
     const SANITY_PROJECT_ID = '7txzz67e';
     const SANITY_DATASET    = 'production';
@@ -587,9 +596,10 @@
     function formatDate(iso) {
       const d = new Date(iso);
       return {
-        month: d.toLocaleString('en-CA', { month: 'short' }),
-        day:   d.getDate(),
-        time:  d.toLocaleString('en-CA', { hour: 'numeric', minute: '2-digit', hour12: true }),
+        month:   d.toLocaleString('en-CA', { month: 'short' }),
+        day:     d.getDate(),
+        weekday: d.toLocaleString('en-CA', { weekday: 'short' }),
+        time:    d.toLocaleString('en-CA', { hour: 'numeric', minute: '2-digit', hour12: true }),
       };
     }
 
@@ -600,7 +610,7 @@
 
     /* ── CARD HTML ──────────────────────────────────────────── */
     function eventCardHTML(e, i) {
-      const { month, day, time } = formatDate(e.dateTime);
+      const { month, day, weekday, time } = formatDate(e.dateTime);
       const color  = genreColors[e.genre] || '#555';
       const imgUrl = sanityImageUrl(e.image);
       const tag    = e.externalLink ? 'a' : 'div';
@@ -614,6 +624,7 @@
             <div class="card-date-block">
               <span class="month">${month}</span>
               <span class="day">${day}</span>
+              <span class="weekday">${weekday}</span>
             </div>
             <span class="card-genre" style="background:${color}">${e.genre}</span>
           </div>
