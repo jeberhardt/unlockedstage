@@ -45,7 +45,6 @@
       flex-direction: column;
     }
 
-    /* noise */
     body::before {
       content: '';
       position: fixed;
@@ -229,6 +228,33 @@
       letter-spacing: 0.06em;
     }
 
+    /* ── MONTH DIVIDER ──────────────────────────────────────── */
+    .month-group {
+      margin-bottom: 2.5rem;
+    }
+
+    .month-divider {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding-bottom: 0.85rem;
+    }
+
+    .month-divider-label {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .month-divider-line {
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
     /* ── EVENTS GRID ────────────────────────────────────────── */
     .events-grid {
       display: grid;
@@ -386,10 +412,8 @@
 
     /* ── LOADING / EMPTY / ERROR ────────────────────────────── */
     .state-message {
-      grid-column: 1 / -1;
       padding: 4rem 2rem;
       text-align: center;
-      background: var(--card-bg);
     }
 
     .state-message p {
@@ -499,7 +523,7 @@
       <h2>Upcoming Events</h2>
       <span class="events-count" id="events-count"></span>
     </div>
-    <div class="events-grid" id="events-grid">
+    <div id="events-container">
       <div class="state-message">
         <div class="spinner"></div>
         <p>Loading events…</p>
@@ -523,14 +547,15 @@
     const SANITY_DATASET    = 'production';
     const SANITY_API_VER    = '2024-01-01';
 
-    // Builds a Sanity image URL from a reference object
     function sanityImageUrl(ref) {
       if (!ref || !ref.asset || !ref.asset._ref) return null;
-      const [, id, dimensions, ext] = ref.asset._ref.split('-');
-      return `https://cdn.sanity.io/images/${SANITY_PROJECT_ID}/${SANITY_DATASET}/${id}-${dimensions}.${ext}`;
+      const parts = ref.asset._ref.split('-');
+      const ext   = parts[parts.length - 1];
+      const dims  = parts[parts.length - 2];
+      const id    = parts.slice(1, parts.length - 2).join('-');
+      return `https://cdn.sanity.io/images/${SANITY_PROJECT_ID}/${SANITY_DATASET}/${id}-${dims}.${ext}`;
     }
 
-    // Fetch all upcoming events from Sanity, ordered by date ascending
     async function fetchEvents() {
       const query = encodeURIComponent(
         `*[_type == "event" && dateTime >= now()] | order(dateTime asc) {
@@ -568,13 +593,60 @@
       };
     }
 
+    function monthKey(iso) {
+      const d = new Date(iso);
+      return d.toLocaleString('en-CA', { month: 'long', year: 'numeric' });
+    }
+
+    /* ── CARD HTML ──────────────────────────────────────────── */
+    function eventCardHTML(e, i) {
+      const { month, day, time } = formatDate(e.dateTime);
+      const color  = genreColors[e.genre] || '#555';
+      const imgUrl = sanityImageUrl(e.image);
+      const tag    = e.externalLink ? 'a' : 'div';
+      const attrs  = e.externalLink
+        ? `href="${e.externalLink}" target="_blank" rel="noopener"`
+        : '';
+
+      return `
+        <${tag} class="event-card" ${attrs} style="animation-delay:${i * 0.05}s">
+          <div class="card-top">
+            <div class="card-date-block">
+              <span class="month">${month}</span>
+              <span class="day">${day}</span>
+            </div>
+            <span class="card-genre" style="background:${color}">${e.genre}</span>
+          </div>
+          <div class="card-artist">${e.artist}</div>
+          <div class="card-venue-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/>
+              <circle cx="12" cy="10" r="3"/>
+            </svg>
+            ${e.venue}
+          </div>
+          ${imgUrl ? `<img class="card-image" src="${imgUrl}" alt="${e.artist} at ${e.venue}" loading="lazy" />` : ''}
+          ${e.notes ? `<p class="card-notes">${e.notes}</p>` : ''}
+          <div class="card-meta">
+            <span class="card-time">${time}</span>
+            <span class="card-hood">${e.neighbourhood}</span>
+          </div>
+          ${e.externalLink ? `
+          <span class="card-arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/>
+            </svg>
+          </span>` : ''}
+        </${tag}>`;
+    }
+
     /* ── RENDER ─────────────────────────────────────────────── */
-    let allEvents = [];
+    let allEvents    = [];
     let activeFilter = 'all';
 
     function renderEvents() {
-      const grid = document.getElementById('events-grid');
-      const countEl = document.getElementById('events-count');
+      const container = document.getElementById('events-container');
+      const countEl   = document.getElementById('events-count');
 
       const filtered = activeFilter === 'all'
         ? allEvents
@@ -583,50 +655,30 @@
       countEl.textContent = `${filtered.length} event${filtered.length !== 1 ? 's' : ''}`;
 
       if (filtered.length === 0) {
-        grid.innerHTML = `<div class="state-message"><p>No upcoming events for this genre — check back soon.</p></div>`;
+        container.innerHTML = `<div class="state-message"><p>No upcoming events for this genre — check back soon.</p></div>`;
         return;
       }
 
-      grid.innerHTML = filtered.map((e, i) => {
-        const { month, day, time } = formatDate(e.dateTime);
-        const color   = genreColors[e.genre] || '#555';
-        const imgUrl  = sanityImageUrl(e.image);
-        const tag     = e.externalLink ? 'a' : 'div';
-        const attrs   = e.externalLink
-          ? `href="${e.externalLink}" target="_blank" rel="noopener"`
-          : '';
+      // Group by month
+      const groups = new Map();
+      filtered.forEach(e => {
+        const key = monthKey(e.dateTime);
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(e);
+      });
 
-        return `
-          <${tag} class="event-card" ${attrs} style="animation-delay:${i * 0.05}s">
-            <div class="card-top">
-              <div class="card-date-block">
-                <span class="month">${month}</span>
-                <span class="day">${day}</span>
-              </div>
-              <span class="card-genre" style="background:${color}">${e.genre}</span>
-            </div>
-            <div class="card-artist">${e.artist}</div>
-            <div class="card-venue-row">
-              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/>
-                <circle cx="12" cy="10" r="3"/>
-              </svg>
-              ${e.venue}
-            </div>
-            ${imgUrl ? `<img class="card-image" src="${imgUrl}" alt="${e.artist} at ${e.venue}" loading="lazy" />` : ''}
-            ${e.notes ? `<p class="card-notes">${e.notes}</p>` : ''}
-            <div class="card-meta">
-              <span class="card-time">${time}</span>
-              <span class="card-hood">${e.neighbourhood}</span>
-            </div>
-            ${e.externalLink ? `
-            <span class="card-arrow">
-              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/>
-              </svg>
-            </span>` : ''}
-          </${tag}>`;
-      }).join('');
+      let cardIndex = 0;
+      container.innerHTML = Array.from(groups.entries()).map(([label, events]) => `
+        <div class="month-group">
+          <div class="month-divider">
+            <span class="month-divider-label">${label}</span>
+            <span class="month-divider-line"></span>
+          </div>
+          <div class="events-grid">
+            ${events.map(e => eventCardHTML(e, cardIndex++)).join('')}
+          </div>
+        </div>
+      `).join('');
     }
 
     /* ── FILTER BUTTONS ─────────────────────────────────────── */
@@ -647,7 +699,7 @@
       })
       .catch(err => {
         console.error(err);
-        document.getElementById('events-grid').innerHTML =
+        document.getElementById('events-container').innerHTML =
           `<div class="state-message"><p>Couldn't load events right now — please try again shortly.</p></div>`;
         document.getElementById('events-count').textContent = '';
       });
