@@ -1,0 +1,17 @@
+{
+  "name": "unlocked-scripts",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "scrape": "node scripts/scrape-known-sources.js",
+    "discover": "node scripts/discover-new-sources.js",
+    "post": "node scripts/post-to-social.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@sanity/client": "^6.0.0",
+    "@napi-rs/canvas": "^0.1.0",
+    "cheerio": "^1.0.0",
+    "node-fetch": "^3.3.2"
+  }
+}
