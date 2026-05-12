@@ -43,6 +43,8 @@ export const IG_ACCESS_TOKEN = process.env.IG_ACCESS_TOKEN;
 export const FB_PAGE_ID      = process.env.FB_PAGE_ID;
 export const FB_ACCESS_TOKEN = process.env.FB_ACCESS_TOKEN;
 
+export const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
+
 // Valid genre values matching your Sanity schema
 export const VALID_GENRES = [
   'jazz', 'indie', 'classical', 'folk', 'electronic', 'rb', 'pop', 'hiphop', 'other'

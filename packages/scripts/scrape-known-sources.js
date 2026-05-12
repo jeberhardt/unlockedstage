@@ -13,6 +13,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import * as cheerio from 'cheerio';
 import { fetchSources, fetchExistingLinks, sanity } from '../lib/sanity.js';
 import { ANTHROPIC_API_KEY, VALID_GENRES } from '../lib/config.js';
+import { postScrapeSummary } from '../lib/discord.js';
 
 const DRY_RUN = process.argv.includes('--dry-run');
 const client  = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
@@ -105,6 +106,7 @@ async function main() {
   console.log(`   ${existingLinks.size} events already in Sanity.\n`);
 
   let totalNew = 0;
+  const newEventNames = [];
 
   for (const source of sources) {
     console.log(`→ ${source.venue}`);
@@ -143,6 +145,7 @@ async function main() {
         await sanity.create(doc);
         existingLinks.add(event.externalLink);
         totalNew++;
+        newEventNames.push(`${event.artist} @ ${event.venue}`);
         console.log(`  ✓ Published: ${event.artist} @ ${event.venue}`);
       } catch (err) {
         console.error(`  ✗ Failed to publish ${event.artist}: ${err.message}`);
@@ -151,6 +154,14 @@ async function main() {
   }
 
   console.log(`\n✅ Done. ${totalNew} new event(s) published.\n`);
+
+  if (!DRY_RUN && newEventNames.length > 0) {
+    try {
+      await postScrapeSummary(newEventNames);
+    } catch (err) {
+      console.warn(`⚠ Discord summary failed: ${err.message}`);
+    }
+  }
 }
 
 main().catch(err => { console.error(err); process.exit(1); });
