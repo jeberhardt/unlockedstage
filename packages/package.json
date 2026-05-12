@@ -12,6 +12,7 @@
     "@sanity/client": "^6.0.0",
     "@napi-rs/canvas": "^0.1.0",
     "cheerio": "^1.0.0",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "puppeteer": "^24.15.0"
   }
 }

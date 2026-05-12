@@ -17,12 +17,39 @@ import { ANTHROPIC_API_KEY, VALID_GENRES } from '../lib/config.js';
 const DRY_RUN = process.argv.includes('--dry-run');
 const client  = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 
+const THIN_CONTENT_THRESHOLD = 3000;
+
+function extractText(html) {
+  const $ = cheerio.load(html);
+  $('script, style, nav, footer, iframe, noscript').remove();
+  return $('body').text().replace(/\s+/g, ' ').trim().slice(0, 12000);
+}
+
+async function fetchPageTextWithPuppeteer(url) {
+  const { default: puppeteer } = await import('puppeteer');
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  });
+  try {
+    const page = await browser.newPage();
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+    const html = await page.content();
+    return extractText(html);
+  } finally {
+    await browser.close();
+  }
+}
+
 async function fetchPageText(url) {
   const res  = await fetch(url, { headers: { 'User-Agent': 'UnlockedStage-Bot/1.0' } });
   const html = await res.text();
-  const $    = cheerio.load(html);
-  $('script, style, nav, footer, iframe, noscript').remove();
-  return $('body').text().replace(/\s+/g, ' ').trim().slice(0, 12000);
+  const text = extractText(html);
+  if (text.length < THIN_CONTENT_THRESHOLD) {
+    console.log('  ↩ Static fetch returned thin content, retrying with Puppeteer…');
+    return fetchPageTextWithPuppeteer(url);
+  }
+  return text;
 }
 
 async function extractEvents(pageText, source) {
@@ -55,7 +82,7 @@ ${pageText}
 
   const msg = await client.messages.create({
     model:      'claude-sonnet-4-20250514',
-    max_tokens: 2000,
+    max_tokens: 4096,
     messages:   [{ role: 'user', content: prompt }],
   });
 
