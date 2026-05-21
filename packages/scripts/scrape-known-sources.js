@@ -155,7 +155,7 @@ async function main() {
 
   console.log(`\n✅ Done. ${totalNew} new event(s) published.\n`);
 
-  if (!DRY_RUN && newEventNames.length > 0) {
+  if (!DRY_RUN) {
     try {
       await postScrapeSummary(newEventNames);
     } catch (err) {
