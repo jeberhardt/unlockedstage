@@ -12,9 +12,9 @@
 //   node scripts/post-to-social.js --format story     # use 4:5 story format
 // ---------------------------------------------------------------------------
 
-import { writeFileSync, unlinkSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join }   from 'node:path';
+import { writeFileSync } from 'node:fs';
+import { tmpdir }        from 'node:os';
+import { join }          from 'node:path';
 import { fetchNextUnpostedEvent, markAsPosted, sanity } from '../lib/sanity.js';
 import { renderEventImage }                          from '../lib/render-image.js';
 import {
@@ -50,7 +50,7 @@ async function graphPost(path, params) {
 // ---------------------------------------------------------------------------
 // Instagram: upload image container → publish → comment
 // ---------------------------------------------------------------------------
-async function postToInstagram(imageUrl, caption, commentText) {
+async function postToInstagram(imageUrl, caption) {
   console.log('  → Instagram: creating media container…');
   const container = await graphPost(`/${IG_USER_ID}/media`, {
     image_url:    imageUrl,
@@ -64,12 +64,6 @@ async function postToInstagram(imageUrl, caption, commentText) {
     access_token: IG_ACCESS_TOKEN,
   });
 
-  console.log('  → Instagram: posting first comment…');
-  await graphPost(`/${published.id}/comments`, {
-    message:      commentText,
-    access_token: IG_ACCESS_TOKEN,
-  });
-
   console.log(`  ✓ Instagram post published (id: ${published.id})`);
   return published.id;
 }
@@ -77,17 +71,11 @@ async function postToInstagram(imageUrl, caption, commentText) {
 // ---------------------------------------------------------------------------
 // Facebook: upload photo → post caption → comment
 // ---------------------------------------------------------------------------
-async function postToFacebook(imageUrl, caption, commentText) {
+async function postToFacebook(imageUrl, caption) {
   console.log('  → Facebook: uploading photo…');
   const photo = await graphPost(`/${FB_PAGE_ID}/photos`, {
     url:          imageUrl,
     caption,
-    access_token: FB_ACCESS_TOKEN,
-  });
-
-  console.log('  → Facebook: posting first comment…');
-  await graphPost(`/${photo.post_id}/comments`, {
-    message:      commentText,
     access_token: FB_ACCESS_TOKEN,
   });
 
@@ -98,10 +86,10 @@ async function postToFacebook(imageUrl, caption, commentText) {
 // ---------------------------------------------------------------------------
 // Facebook: text-only post (no image)
 // ---------------------------------------------------------------------------
-async function postTextToFacebook(caption, commentText) {
+async function postTextToFacebook(caption) {
   console.log('  → Facebook: posting to feed…');
   const post = await graphPost(`/${FB_PAGE_ID}/feed`, {
-    message:      `${caption}\n\n${commentText}`,
+    message:      caption,
     access_token: FB_ACCESS_TOKEN,
   });
   console.log(`  ✓ Facebook post published (post_id: ${post.id})`);
@@ -109,30 +97,13 @@ async function postTextToFacebook(caption, commentText) {
 }
 
 // ---------------------------------------------------------------------------
-// Host the PNG temporarily so Meta can fetch it by URL.
-// In production, upload to your CDN / S3 / Sanity assets instead.
-// This helper writes to a temp file and assumes you have a tunnel (e.g. ngrok)
-// or a deploy — swap `IMAGE_BASE_URL` for your real public URL.
-// ---------------------------------------------------------------------------
-const IMAGE_BASE_URL = process.env.IMAGE_BASE_URL ?? 'https://your-server.com/tmp';
-
 async function makeImagePublicUrl(buffer, eventId) {
-  // In a real deploy: upload buffer to S3/Cloudflare R2/Sanity and return URL.
-  // For local testing with ngrok, write to a statically served tmp directory.
-  const filename = `${eventId}-${Date.now()}.png`;
-  const tmpPath  = join(tmpdir(), filename);
-  writeFileSync(tmpPath, buffer);
-
-  // You would serve tmpdir via a local HTTP server when testing locally.
-  // In production replace this with an actual upload:
-  //
-  //   const { url } = await sanity.assets.upload('image', buffer, {
-  //     filename,
-  //     contentType: 'image/png',
-  //   });
-  //   return url + '?w=1080';
-  //
-  return `${IMAGE_BASE_URL}/${filename}`;
+  const filename = `social-${eventId}-${Date.now()}.png`;
+  const asset = await sanity.assets.upload('image', buffer, {
+    filename,
+    contentType: 'image/png',
+  });
+  return `${asset.url}?w=1080`;
 }
 
 // ---------------------------------------------------------------------------
@@ -154,19 +125,16 @@ function buildCaption(event) {
   const hashtag = genreMap[event.genre] ?? '#livemusic';
 
   return [
-    `🎵 ${event.artist}`,
+    `🎵 ${event.title || event.artist}`,
     `📅 ${dateStr} at ${timeStr}`,
     `📍 ${event.venue}, ${event.neighbourhood}`,
     '',
     event.notes ? event.notes.slice(0, 200) : '',
     '',
     `${hashtag} #Toronto #UnlockedStage #LiveMusic`,
+    '',
+    event.externalLink ? `🎟️ ${event.externalLink}` : '🎟️ unlockedstage.ca',
   ].filter(l => l !== undefined).join('\n').trim();
-}
-
-function buildComment(event) {
-  if (!event.externalLink) return '🎟️ Tickets & info: unlockedstage.ca';
-  return `🎟️ Full details & tickets: ${event.externalLink}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -175,12 +143,10 @@ function buildComment(event) {
 async function processEvent(event) {
   console.log(`\n🎶 ${event.artist} @ ${event.venue}`);
 
-  const buffer   = NO_IMAGE ? null : renderEventImage(event, FORMAT);
-  const caption  = buildCaption(event);
-  const comment  = buildComment(event);
+  const buffer  = NO_IMAGE ? null : renderEventImage(event, FORMAT);
+  const caption = buildCaption(event);
 
   console.log('  Caption preview:\n' + caption.split('\n').map(l => `    ${l}`).join('\n'));
-  console.log(`  Comment: ${comment}`);
 
   if (DRY_RUN) {
     const outPath = join(tmpdir(), `${event._id}-preview.png`);
@@ -191,7 +157,7 @@ async function processEvent(event) {
 
   if (NO_IMAGE) {
     const result = await Promise.allSettled([
-      postTextToFacebook(caption, comment),
+      postTextToFacebook(caption),
     ]);
     if (result[0].status === 'fulfilled') {
       await markAsPosted(event._id);
@@ -206,8 +172,8 @@ async function processEvent(event) {
   const imageUrl = await makeImagePublicUrl(buffer, event._id);
 
   const results = await Promise.allSettled([
-    postToInstagram(imageUrl, caption, comment),
-    postToFacebook(imageUrl, caption, comment),
+    postToInstagram(imageUrl, caption),
+    postToFacebook(imageUrl, caption),
   ]);
 
   results.forEach((r, i) => {

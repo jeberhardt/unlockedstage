@@ -44,7 +44,7 @@ export async function fetchExistingLinks() {
 export async function fetchUnpostedEvents() {
   return sanity.fetch(`
     *[_type == "event" && (postedToSocial != true)] | order(dateTime asc) {
-      _id, artist, genre, dateTime, venue, neighbourhood, externalLink, notes
+      _id, title, artist, genre, dateTime, venue, neighbourhood, externalLink, notes
     }
   `);
 }
@@ -53,7 +53,7 @@ export async function fetchNextUnpostedEvent() {
   const now = new Date().toISOString();
   return sanity.fetch(`
     *[_type == "event" && (postedToSocial != true) && dateTime >= $now] | order(dateTime asc) [0] {
-      _id, artist, genre, dateTime, venue, neighbourhood, externalLink, notes
+      _id, title, artist, genre, dateTime, venue, neighbourhood, externalLink, notes
     }
   `, { now });
 }
