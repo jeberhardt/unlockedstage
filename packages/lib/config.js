@@ -40,6 +40,8 @@ export const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 export const IG_USER_ID      = process.env.IG_USER_ID;
 export const IG_ACCESS_TOKEN = process.env.IG_ACCESS_TOKEN;
+export const FB_APP_ID       = process.env.FB_APP_ID;
+export const FB_APP_SECRET   = process.env.FB_APP_SECRET;
 export const FB_PAGE_ID      = process.env.FB_PAGE_ID;
 export const FB_ACCESS_TOKEN = process.env.FB_ACCESS_TOKEN;
 

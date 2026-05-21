@@ -49,6 +49,15 @@ export async function fetchUnpostedEvents() {
   `);
 }
 
+export async function fetchNextUnpostedEvent() {
+  const now = new Date().toISOString();
+  return sanity.fetch(`
+    *[_type == "event" && (postedToSocial != true) && dateTime >= $now] | order(dateTime asc) [0] {
+      _id, artist, genre, dateTime, venue, neighbourhood, externalLink, notes
+    }
+  `, { now });
+}
+
 /**
  * Creates a draft event document and immediately publishes it.
  * Returns the published document id.

@@ -15,7 +15,7 @@
 import { writeFileSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join }   from 'node:path';
-import { fetchUnpostedEvents, markAsPosted, sanity } from '../lib/sanity.js';
+import { fetchNextUnpostedEvent, markAsPosted, sanity } from '../lib/sanity.js';
 import { renderEventImage }                          from '../lib/render-image.js';
 import {
   IG_USER_ID, IG_ACCESS_TOKEN,
@@ -26,6 +26,7 @@ import {
 // CLI args
 // ---------------------------------------------------------------------------
 const DRY_RUN   = process.argv.includes('--dry-run');
+const NO_IMAGE  = process.argv.includes('--no-image');
 const FORMAT    = process.argv.includes('--format') && process.argv[process.argv.indexOf('--format') + 1] === 'story'
   ? 'story' : 'square';
 const SINGLE_ID = process.argv.includes('--id')
@@ -95,6 +96,19 @@ async function postToFacebook(imageUrl, caption, commentText) {
 }
 
 // ---------------------------------------------------------------------------
+// Facebook: text-only post (no image)
+// ---------------------------------------------------------------------------
+async function postTextToFacebook(caption, commentText) {
+  console.log('  → Facebook: posting to feed…');
+  const post = await graphPost(`/${FB_PAGE_ID}/feed`, {
+    message:      `${caption}\n\n${commentText}`,
+    access_token: FB_ACCESS_TOKEN,
+  });
+  console.log(`  ✓ Facebook post published (post_id: ${post.id})`);
+  return post.id;
+}
+
+// ---------------------------------------------------------------------------
 // Host the PNG temporarily so Meta can fetch it by URL.
 // In production, upload to your CDN / S3 / Sanity assets instead.
 // This helper writes to a temp file and assumes you have a tunnel (e.g. ngrok)
@@ -161,7 +175,7 @@ function buildComment(event) {
 async function processEvent(event) {
   console.log(`\n🎶 ${event.artist} @ ${event.venue}`);
 
-  const buffer   = renderEventImage(event, FORMAT);
+  const buffer   = NO_IMAGE ? null : renderEventImage(event, FORMAT);
   const caption  = buildCaption(event);
   const comment  = buildComment(event);
 
@@ -169,10 +183,22 @@ async function processEvent(event) {
   console.log(`  Comment: ${comment}`);
 
   if (DRY_RUN) {
-    // Write the image locally so you can inspect it
     const outPath = join(tmpdir(), `${event._id}-preview.png`);
     writeFileSync(outPath, buffer);
     console.log(`  [DRY RUN] Image written to ${outPath}`);
+    return;
+  }
+
+  if (NO_IMAGE) {
+    const result = await Promise.allSettled([
+      postTextToFacebook(caption, comment),
+    ]);
+    if (result[0].status === 'fulfilled') {
+      await markAsPosted(event._id);
+      console.log(`  ✓ Marked as posted in Sanity.`);
+    } else {
+      console.error(`  ✗ Facebook failed: ${result[0].reason.message}`);
+    }
     return;
   }
 
@@ -203,26 +229,21 @@ async function processEvent(event) {
 async function main() {
   console.log(`\n📱 Social poster — format: ${FORMAT}${DRY_RUN ? ' (DRY RUN)' : ''}\n`);
 
-  let events;
+  let event;
 
   if (SINGLE_ID) {
-    const doc = await sanity.fetch(`*[_type == "event" && _id == $id][0]`, { id: SINGLE_ID });
-    if (!doc) { console.error(`Event ${SINGLE_ID} not found.`); process.exit(1); }
-    events = [doc];
+    event = await sanity.fetch(`*[_type == "event" && _id == $id][0]`, { id: SINGLE_ID });
+    if (!event) { console.error(`Event ${SINGLE_ID} not found.`); process.exit(1); }
   } else {
-    events = await fetchUnpostedEvents();
+    event = await fetchNextUnpostedEvent();
   }
 
-  console.log(`${events.length} event(s) to post.\n`);
-
-  if (events.length === 0) {
-    console.log('Nothing to do. All events have been posted, or none exist.\n');
+  if (!event) {
+    console.log('Nothing to do. No upcoming unposted events.\n');
     return;
   }
 
-  for (const event of events) {
-    await processEvent(event);
-  }
+  await processEvent(event);
 
   console.log('\n✅ Done.\n');
 }
