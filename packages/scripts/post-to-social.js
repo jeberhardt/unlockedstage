@@ -50,6 +50,21 @@ async function graphPost(path, params) {
 // ---------------------------------------------------------------------------
 // Instagram: upload image container → publish → comment
 // ---------------------------------------------------------------------------
+async function waitForInstagramContainer(containerId) {
+  for (let i = 0; i < 10; i++) {
+    const url = new URL(`https://graph.facebook.com/v19.0/${containerId}`);
+    url.searchParams.set('fields', 'status_code');
+    url.searchParams.set('access_token', IG_ACCESS_TOKEN);
+    const res  = await fetch(url.toString());
+    const json = await res.json();
+    if (json.status_code === 'FINISHED') return;
+    if (json.status_code === 'ERROR') throw new Error(`Instagram container failed: ${JSON.stringify(json)}`);
+    console.log(`  → Instagram: container status ${json.status_code}, waiting…`);
+    await new Promise(r => setTimeout(r, 3000));
+  }
+  throw new Error('Instagram container timed out');
+}
+
 async function postToInstagram(imageUrl, caption) {
   console.log('  → Instagram: creating media container…');
   const container = await graphPost(`/${IG_USER_ID}/media`, {
@@ -57,6 +72,8 @@ async function postToInstagram(imageUrl, caption) {
     caption,
     access_token: IG_ACCESS_TOKEN,
   });
+
+  await waitForInstagramContainer(container.id);
 
   console.log('  → Instagram: publishing…');
   const published = await graphPost(`/${IG_USER_ID}/media_publish`, {
