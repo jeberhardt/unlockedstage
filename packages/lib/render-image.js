@@ -81,17 +81,29 @@ export function renderEventImage(event, format = 'square') {
   ctx.stroke();
   ctx.restore();
 
-  // Accent bar
+  // "FREE · GENRE" top-left line
+  const topY    = pad + W * 0.035;
+  const topSize = Math.round(W * 0.032);
+  ctx.font      = `bold ${topSize}px sans-serif`;
+  const freeLbl = 'FREE';
+  const freeTW  = ctx.measureText(freeLbl).width;
+  const freePad = W * 0.018;
+  const freePh  = topSize * 1.5;
+  roundRect(ctx, pad, topY - topSize, freeTW + freePad * 2, freePh, 4);
   ctx.fillStyle = acc;
-  ctx.fillRect(pad, pad, W * 0.06, 6);
-
-  // Genre label
-  ctx.font      = `500 ${Math.round(W * 0.032)}px sans-serif`;
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.fillText(freeLbl, pad + freePad, topY);
+  const sep     = '  ·  ';
+  ctx.font      = `500 ${topSize}px sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillText(sep, pad + freeTW + freePad * 2, topY);
+  const sepW    = ctx.measureText(sep).width;
   ctx.fillStyle = acc;
-  ctx.fillText((GENRE_LABELS[event.genre] ?? 'Live Music').toUpperCase(), pad, pad + W * 0.07);
+  ctx.fillText((GENRE_LABELS[event.genre] ?? 'Live Music').toUpperCase(), pad + freeTW + freePad * 2 + sepW, topY);
 
-  // Artist name (word-wrapped)
-  const name         = event.artist ?? 'Unnamed Event';
+  // Title (primary) or artist name if no title
+  const name         = event.title || event.artist || 'Unnamed Event';
   const nameFontSize = name.length > 22 ? Math.round(W * 0.082) : Math.round(W * 0.108);
   ctx.font           = `bold ${nameFontSize}px sans-serif`;
   const maxW         = W - pad * 2;
@@ -111,8 +123,19 @@ export function renderEventImage(event, format = 'square') {
   ctx.fillStyle = '#FFFFFF';
   lines.forEach((l, i) => ctx.fillText(l, pad, nameY + i * lineH));
 
+  // Artist name (below title, if both present)
+  let titleBlockH = 0;
+  if (event.title && event.artist && event.title !== event.artist) {
+    const artistFontSize = Math.round(W * 0.038);
+    ctx.font      = `500 ${artistFontSize}px sans-serif`;
+    ctx.fillStyle = 'rgba(255,255,255,0.65)';
+    const artistText = event.artist.length > 50 ? event.artist.slice(0, 47) + '…' : event.artist;
+    ctx.fillText(artistText, pad, nameY + totalH + artistFontSize * 1.2);
+    titleBlockH = artistFontSize * 1.8;
+  }
+
   // Divider
-  const divY = nameY + totalH + W * 0.04;
+  const divY = nameY + totalH + titleBlockH + W * 0.04;
   ctx.fillStyle   = acc;
   ctx.globalAlpha = 0.4;
   ctx.fillRect(pad, divY, W - pad * 2, 1.5);
@@ -131,23 +154,11 @@ export function renderEventImage(event, format = 'square') {
     : (event.venue ?? '');
   ctx.fillText(venueText, pad, infoY + W * 0.052);
 
-  // Price badge
-  const price = 'FREE';
-  const pfs   = Math.round(W * 0.032);
-  ctx.font     = `bold ${pfs}px sans-serif`;
-  const pw     = ctx.measureText(price).width + W * 0.04;
-  const ph     = pfs * 1.6;
-  ctx.fillStyle = acc;
-  roundRect(ctx, pad, H - pad - ph, pw, ph, 4);
-  ctx.fill();
-  ctx.fillStyle = '#fff';
-  ctx.fillText(price, pad + W * 0.02, H - pad - ph * 0.32);
-
-  // Watermark
-  ctx.font      = `${Math.round(W * 0.026)}px sans-serif`;
+  // Watermark (top-right, aligned with FREE badge)
+  ctx.font      = `${topSize}px sans-serif`;
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
   ctx.textAlign = 'right';
-  ctx.fillText('unlockedstage.ca', W - pad, H - pad - W * 0.01);
+  ctx.fillText('unlockedstage.ca', W - pad, topY);
   ctx.textAlign = 'left';
 
   return canvas.toBuffer('image/png');

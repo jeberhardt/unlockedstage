@@ -18,6 +18,7 @@ import { join }          from 'node:path';
 import { fetchNextUnpostedEvent, markAsPosted, sanity } from '../lib/sanity.js';
 import { renderEventImage }                            from '../lib/render-image.js';
 import { postImageToDiscord }                          from '../lib/discord.js';
+import { buildIndividualCaption }                      from '../lib/captions.js';
 import { postToInstagram }                             from './social/instagram.js';
 import { postToFacebook, postTextToFacebook }          from './social/facebook.js';
 
@@ -43,44 +44,13 @@ async function makeImagePublicUrl(buffer, eventId) {
 }
 
 // ---------------------------------------------------------------------------
-// Build caption & comment
-// ---------------------------------------------------------------------------
-function buildCaption(event) {
-  const d = new Date(event.dateTime);
-  const dateStr = d.toLocaleDateString('en-CA', {
-    weekday: 'long', month: 'long', day: 'numeric', timeZone: 'America/Toronto'
-  });
-  const timeStr = d.toLocaleTimeString('en-CA', {
-    hour: 'numeric', minute: '2-digit', timeZone: 'America/Toronto'
-  });
-
-  const genreMap = {
-    jazz: '#jazz', indie: '#indie', classical: '#classical', folk: '#folk',
-    electronic: '#electronic', rb: '#rnb', pop: '#pop', hiphop: '#hiphop', other: '#livemusic',
-  };
-  const hashtag = genreMap[event.genre] ?? '#livemusic';
-
-  return [
-    `🎵 ${event.title || event.artist}`,
-    `📅 ${dateStr} at ${timeStr}`,
-    `📍 ${event.venue}, ${event.neighbourhood}`,
-    '',
-    event.notes ? event.notes.slice(0, 200) : '',
-    '',
-    `${hashtag} #Toronto #UnlockedStage #LiveMusic`,
-    '',
-    event.externalLink ? `🎟️ ${event.externalLink}` : '🎟️ unlockedstage.ca',
-  ].filter(l => l !== undefined).join('\n').trim();
-}
-
-// ---------------------------------------------------------------------------
 // Process a single event
 // ---------------------------------------------------------------------------
 async function processEvent(event) {
   console.log(`\n🎶 ${event.artist} @ ${event.venue}`);
 
   const buffer  = NO_IMAGE ? null : renderEventImage(event, FORMAT);
-  const caption = buildCaption(event);
+  const caption = buildIndividualCaption(event);
 
   console.log('  Caption preview:\n' + caption.split('\n').map(l => `    ${l}`).join('\n'));
 

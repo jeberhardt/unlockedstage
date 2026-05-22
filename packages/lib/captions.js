@@ -1,0 +1,110 @@
+const TZ = 'America/Toronto';
+
+const genreMap = {
+  jazz: '#jazz', indie: '#indie', classical: '#classical', folk: '#folk',
+  electronic: '#electronic', rb: '#rnb', pop: '#pop', hiphop: '#hiphop', other: '#livemusic',
+};
+
+function hashtag(genre) {
+  return genreMap[genre] ?? '#livemusic';
+}
+
+function longDate(iso) {
+  return new Date(iso).toLocaleDateString('en-CA', {
+    weekday: 'long', month: 'long', day: 'numeric', timeZone: TZ,
+  });
+}
+
+function shortDate(iso) {
+  return new Date(iso).toLocaleDateString('en-CA', {
+    weekday: 'short', month: 'short', day: 'numeric', timeZone: TZ,
+  });
+}
+
+function time(iso) {
+  return new Date(iso).toLocaleTimeString('en-CA', {
+    hour: 'numeric', minute: '2-digit', timeZone: TZ,
+  });
+}
+
+function link(event) {
+  return event.externalLink ? `🎟️ ${event.externalLink}` : '🎟️ unlockedstage.ca';
+}
+
+// ---------------------------------------------------------------------------
+
+export function buildIndividualCaption(event) {
+  return [
+    `🎵 ${event.title || event.artist}`,
+    event.title ? event.artist : '',
+    `📅 ${longDate(event.dateTime)} at ${time(event.dateTime)}`,
+    `📍 ${event.venue}, ${event.neighbourhood}`,
+    '',
+    event.notes ? event.notes.slice(0, 200) : '',
+    '',
+    `${hashtag(event.genre)} #Toronto #UnlockedStage #LiveMusic`,
+    '',
+    link(event),
+  ].filter(l => l !== undefined).join('\n').trim();
+}
+
+export function buildFestivalCaption(event) {
+  return [
+    `🎪 ${event.title || event.artist}`,
+    `📅 ${longDate(event.dateTime)}`,
+    `📍 ${event.venue}, ${event.neighbourhood}`,
+    '',
+    event.notes ? event.notes.slice(0, 200) : '',
+    '',
+    `#festival ${hashtag(event.genre)} #Toronto #UnlockedStage #LiveMusic`,
+    '',
+    link(event),
+  ].filter(l => l !== undefined).join('\n').trim();
+}
+
+export function buildSeriesCaption(event) {
+  return [
+    `🎶 ${event.title || event.artist}`,
+    `📅 ${longDate(event.dateTime)} at ${time(event.dateTime)}`,
+    `📍 ${event.venue}, ${event.neighbourhood}`,
+    '',
+    event.notes ? event.notes.slice(0, 200) : '',
+    '',
+    `${hashtag(event.genre)} #Toronto #UnlockedStage #LiveMusic`,
+    '',
+    link(event),
+  ].filter(l => l !== undefined).join('\n').trim();
+}
+
+function buildListingCaption(header, events) {
+  const lines = events.map(e =>
+    `🎵 ${e.title || e.artist}\n   ${shortDate(e.dateTime)} · ${e.venue}, ${e.neighbourhood}`
+  );
+  return [
+    header,
+    '',
+    ...lines,
+    '',
+    '#Toronto #UnlockedStage #LiveMusic',
+    '',
+    '🎟️ unlockedstage.ca',
+  ].join('\n').trim();
+}
+
+export function buildThisWeekCaption(events) {
+  return buildListingCaption('🗓 Free concerts in Toronto this week:', events);
+}
+
+export function buildNextWeekCaption(events) {
+  return buildListingCaption('🗓 Free concerts in Toronto next week:', events);
+}
+
+export function buildThisMonthCaption(events) {
+  const month = new Date(events[0].dateTime).toLocaleString('en-CA', { month: 'long', timeZone: TZ });
+  return buildListingCaption(`🗓 Free concerts in Toronto this ${month}:`, events);
+}
+
+export function buildNextMonthCaption(events) {
+  const month = new Date(events[0].dateTime).toLocaleString('en-CA', { month: 'long', timeZone: TZ });
+  return buildListingCaption(`🗓 Free concerts coming up in ${month}:`, events);
+}
