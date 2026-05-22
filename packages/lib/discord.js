@@ -1,5 +1,16 @@
 import { DISCORD_WEBHOOK_URL } from './config.js';
 
+export async function postImageToDiscord(buffer, filename, caption) {
+  const form = new FormData();
+  form.append('file', new Blob([buffer], { type: 'image/png' }), filename);
+  if (caption) form.append('payload_json', JSON.stringify({ content: caption }));
+  const res = await fetch(DISCORD_WEBHOOK_URL, { method: 'POST', body: form });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Discord webhook: ${res.status} ${err}`);
+  }
+}
+
 export async function postScrapeSummary(eventNames) {
   const content = eventNames.length === 0
     ? '**Scrape complete** — no new events found.'

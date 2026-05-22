@@ -16,11 +16,10 @@ import { writeFileSync } from 'node:fs';
 import { tmpdir }        from 'node:os';
 import { join }          from 'node:path';
 import { fetchNextUnpostedEvent, markAsPosted, sanity } from '../lib/sanity.js';
-import { renderEventImage }                          from '../lib/render-image.js';
-import {
-  IG_USER_ID, IG_ACCESS_TOKEN,
-  FB_PAGE_ID, FB_ACCESS_TOKEN,
-} from '../lib/config.js';
+import { renderEventImage }                            from '../lib/render-image.js';
+import { postImageToDiscord }                          from '../lib/discord.js';
+import { postToInstagram }                             from './social/instagram.js';
+import { postToFacebook, postTextToFacebook }          from './social/facebook.js';
 
 // ---------------------------------------------------------------------------
 // CLI args
@@ -32,86 +31,6 @@ const FORMAT    = process.argv.includes('--format') && process.argv[process.argv
 const SINGLE_ID = process.argv.includes('--id')
   ? process.argv[process.argv.indexOf('--id') + 1]
   : null;
-
-// ---------------------------------------------------------------------------
-// Meta Graph API helpers
-// ---------------------------------------------------------------------------
-const GRAPH = 'https://graph.facebook.com/v19.0';
-
-async function graphPost(path, params) {
-  const url  = new URL(`${GRAPH}${path}`);
-  const body = new URLSearchParams(params);
-  const res  = await fetch(url.toString(), { method: 'POST', body });
-  const json = await res.json();
-  if (json.error) throw new Error(`Meta API error on ${path}: ${JSON.stringify(json.error)}`);
-  return json;
-}
-
-// ---------------------------------------------------------------------------
-// Instagram: upload image container → publish → comment
-// ---------------------------------------------------------------------------
-async function waitForInstagramContainer(containerId) {
-  for (let i = 0; i < 10; i++) {
-    const url = new URL(`https://graph.facebook.com/v19.0/${containerId}`);
-    url.searchParams.set('fields', 'status_code');
-    url.searchParams.set('access_token', IG_ACCESS_TOKEN);
-    const res  = await fetch(url.toString());
-    const json = await res.json();
-    if (json.status_code === 'FINISHED') return;
-    if (json.status_code === 'ERROR') throw new Error(`Instagram container failed: ${JSON.stringify(json)}`);
-    console.log(`  → Instagram: container status ${json.status_code}, waiting…`);
-    await new Promise(r => setTimeout(r, 3000));
-  }
-  throw new Error('Instagram container timed out');
-}
-
-async function postToInstagram(imageUrl, caption) {
-  console.log('  → Instagram: creating media container…');
-  const container = await graphPost(`/${IG_USER_ID}/media`, {
-    image_url:    imageUrl,
-    caption,
-    access_token: IG_ACCESS_TOKEN,
-  });
-
-  await waitForInstagramContainer(container.id);
-
-  console.log('  → Instagram: publishing…');
-  const published = await graphPost(`/${IG_USER_ID}/media_publish`, {
-    creation_id:  container.id,
-    access_token: IG_ACCESS_TOKEN,
-  });
-
-  console.log(`  ✓ Instagram post published (id: ${published.id})`);
-  return published.id;
-}
-
-// ---------------------------------------------------------------------------
-// Facebook: upload photo → post caption → comment
-// ---------------------------------------------------------------------------
-async function postToFacebook(imageUrl, caption) {
-  console.log('  → Facebook: uploading photo…');
-  const photo = await graphPost(`/${FB_PAGE_ID}/photos`, {
-    url:          imageUrl,
-    caption,
-    access_token: FB_ACCESS_TOKEN,
-  });
-
-  console.log(`  ✓ Facebook post published (post_id: ${photo.post_id})`);
-  return photo.post_id;
-}
-
-// ---------------------------------------------------------------------------
-// Facebook: text-only post (no image)
-// ---------------------------------------------------------------------------
-async function postTextToFacebook(caption) {
-  console.log('  → Facebook: posting to feed…');
-  const post = await graphPost(`/${FB_PAGE_ID}/feed`, {
-    message:      caption,
-    access_token: FB_ACCESS_TOKEN,
-  });
-  console.log(`  ✓ Facebook post published (post_id: ${post.id})`);
-  return post.id;
-}
 
 // ---------------------------------------------------------------------------
 async function makeImagePublicUrl(buffer, eventId) {
@@ -169,6 +88,8 @@ async function processEvent(event) {
     const outPath = join(tmpdir(), `${event._id}-preview.png`);
     writeFileSync(outPath, buffer);
     console.log(`  [DRY RUN] Image written to ${outPath}`);
+    await postImageToDiscord(buffer, `${event._id}-preview.png`, caption);
+    console.log(`  [DRY RUN] Image sent to Discord.`);
     return;
   }
 
