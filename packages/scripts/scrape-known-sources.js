@@ -105,6 +105,7 @@ Each event object must have:
   - notes:            string (description, price, anything useful — optional)
   - instagramHandle:  string (Instagram handle if found on the page, e.g. "@dowestfest" — omit if not present)
   - facebookHandle:   string (Facebook handle if found on the page — omit if not present)
+  - schedule:         array of {startTime, endTime} ISO 8601 strings for multi-day events (one entry per day). Omit for single-day events or when times are unknown.
 
 Rules:
 - Only include events after ${today}. Skip past events and undated listings.
@@ -171,6 +172,7 @@ async function main() {
         notes:           event.notes ?? '',
         ...(event.instagramHandle ? { instagramHandle: event.instagramHandle } : {}),
         ...(event.facebookHandle  ? { facebookHandle:  event.facebookHandle  } : {}),
+        ...(event.schedule?.length ? { schedule: event.schedule.map(s => ({ _type: 'object', startTime: s.startTime, endTime: s.endTime })) } : {}),
       };
 
       if (DRY_RUN) {

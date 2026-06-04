@@ -49,9 +49,13 @@ export function buildIndividualCaption(event) {
 }
 
 export function buildFestivalCaption(event) {
+  const scheduleLine = event.schedule?.length > 1
+    ? event.schedule.map(s => `📅 ${longDate(s.startTime)} · ${time(s.startTime)} – ${time(s.endTime)}`)
+    : [`📅 ${longDate(event.dateTime)}`];
+
   return [
     `🎪 ${event.title || event.artist}`,
-    `📅 ${longDate(event.dateTime)}`,
+    ...scheduleLine,
     `📍 ${event.venue}, ${event.neighbourhood}`,
     '',
     event.notes ? event.notes.slice(0, 200) : '',

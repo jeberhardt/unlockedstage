@@ -6,6 +6,7 @@
     "scrape": "node scripts/scrape-known-sources.js",
     "discover": "node scripts/discover-new-sources.js",
     "post": "node scripts/post-to-social.js",
+    "post-event": "node scripts/post-event-to-social.js",
     "weekend": "node scripts/post-weekend-roundup.js"
   },
   "dependencies": {

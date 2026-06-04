@@ -73,3 +73,38 @@ export async function createAndPublishEvent(event) {
 export async function markAsPosted(id) {
   await sanity.patch(id).set({ postedToSocial: true }).commit();
 }
+
+/**
+ * Returns the next upcoming titled event (festival/named event) not yet posted
+ * via the event-level social post. Deduplicates by title — returns one entry
+ * per unique title, using the earliest occurrence.
+ */
+export async function fetchNextUnpostedNamedEvent() {
+  const now = new Date().toISOString();
+  const events = await sanity.fetch(`
+    *[_type == "event" && defined(title) && eventPostedToSocial != true && dateTime >= $now]
+    | order(dateTime asc) {
+      _id, title, artist, genre, dateTime, venue, neighbourhood, externalLink, notes, instagramHandle, facebookHandle, schedule
+    }
+  `, { now });
+
+  // Return the first event for the earliest unique title
+  const seen = new Set();
+  for (const e of events) {
+    if (!seen.has(e.title)) { seen.add(e.title); return e; }
+  }
+  return null;
+}
+
+/**
+ * Marks all events sharing the given title as eventPostedToSocial = true.
+ */
+export async function markEventAsPosted(title) {
+  const ids = await sanity.fetch(
+    `*[_type == "event" && title == $title]._id`,
+    { title }
+  );
+  await Promise.all(ids.map(id =>
+    sanity.patch(id).set({ eventPostedToSocial: true }).commit()
+  ));
+}
