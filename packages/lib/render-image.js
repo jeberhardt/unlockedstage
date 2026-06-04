@@ -37,12 +37,27 @@ function formatTimeOnly(dtStr) {
   return `${h}:${m} ${ap}`;
 }
 
+function formatTimeRange(startStr, endStr) {
+  const fmt = (dtStr) => {
+    const d  = new Date(dtStr);
+    let h    = d.getHours();
+    const ap = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    const m = d.getMinutes();
+    return { h, m, ap, str: m === 0 ? `${h}` : `${h}:${String(m).padStart(2,'0')}` };
+  };
+  const s = fmt(startStr);
+  const e = fmt(endStr);
+  if (s.ap === e.ap) return `${s.str}–${e.str} ${e.ap}`;
+  return `${s.str} ${s.ap}–${e.str} ${e.ap}`;
+}
+
 function formatScheduleEntry(entry) {
   const d    = new Date(entry.startTime);
   const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
   const mons = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
   const day  = `${days[d.getDay()]} ${d.getDate()} ${mons[d.getMonth()]}`;
-  return `${day} · ${formatTimeOnly(entry.startTime)} – ${formatTimeOnly(entry.endTime)}`;
+  return `${day} · ${formatTimeRange(entry.startTime, entry.endTime)}`;
 }
 
 function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
@@ -82,7 +97,7 @@ function roundRect(ctx, x, y, w, h, r) {
  * @param {'square'|'story'} format
  * @returns {Buffer} PNG buffer
  */
-export function renderEventImage(event, format = 'square') {
+export function renderEventImage(event, format = 'square', performers = []) {
   const W = 1080;
   const H = format === 'story' ? 1350 : 1080;
   const canvas = createCanvas(W, H);
@@ -163,39 +178,100 @@ export function renderEventImage(event, format = 'square') {
   }
   if (line) lines.push(line);
 
-  const lineH  = nameFontSize * 1.05;
-  const totalH = lines.length * lineH;
-  const nameY  = H * 0.42 - totalH / 2;
+  const lineH      = nameFontSize * 1.05;
+  const totalH     = lines.length * lineH;
+  const nameY      = H * 0.42 - totalH / 2;
+  const lastTitleY = nameY + (lines.length - 1) * lineH;
   ctx.fillStyle = '#FFFFFF';
   lines.forEach((l, i) => ctx.fillText(l, pad, nameY + i * lineH));
 
-  // Artist name (below title, if both present)
+  // Artist subtitle (below title, only when no performer list)
   let titleBlockH = 0;
-  if (event.title && event.artist && event.title !== event.artist) {
+  if (!performers.length && event.title && event.artist && event.title !== event.artist) {
     const artistFontSize = Math.round(W * 0.038);
     const artistLineH    = artistFontSize * 1.3;
     ctx.font      = `500 ${artistFontSize}px sans-serif`;
     ctx.fillStyle = 'rgba(255,255,255,0.65)';
-    const lastY   = wrapText(ctx, event.artist, pad, nameY + totalH + artistFontSize * 1.2, maxW, artistLineH);
-    titleBlockH   = lastY - (nameY + totalH) + artistFontSize * 0.8;
+    const artistY = lastTitleY + nameFontSize * 0.35 + artistFontSize;
+    const lastY   = wrapText(ctx, event.artist, pad, artistY, maxW, artistLineH);
+    titleBlockH   = lastY - lastTitleY + artistFontSize * 0.5;
   }
 
-  // Date(s) (accent) & venue
-  const dateFontSize = Math.round(W * 0.036);
-  const dateLineH    = dateFontSize * 1.45;
-  const infoY        = nameY + totalH + titleBlockH + W * 0.07;
-  const dateLines    = event.schedule?.length
-    ? event.schedule.map(formatScheduleEntry)
-    : [formatDate(event.dateTime)];
+  const listTop = lastTitleY + nameFontSize * 0.3 + titleBlockH + W * 0.025;
 
-  ctx.font      = `500 ${dateFontSize}px sans-serif`;
-  ctx.fillStyle = acc;
-  dateLines.forEach((dl, i) => ctx.fillText(dl, pad, infoY + i * dateLineH));
+  if (performers.length) {
+    // Performer rows with alternating backgrounds — date/time on first line, artist on second
+    const dateFontSize   = performers.length <= 4 ? Math.round(W * 0.034) : Math.round(W * 0.028);
+    const artistFontSize = performers.length <= 4 ? Math.round(W * 0.042) : Math.round(W * 0.034);
+    const innerPad       = dateFontSize * 0.7;
+    const rowH           = innerPad + dateFontSize * 1.1 + artistFontSize * 1.2 + innerPad;
+    const rowMargin      = pad * 0.6;
+    const rowPad         = pad * 0.25;
+    const artistMaxW     = W - rowMargin * 2 - rowPad * 2;
 
-  const venueFontSize = Math.round(W * 0.03);
-  ctx.font      = `${venueFontSize}px sans-serif`;
-  ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  wrapText(ctx, event.venue ?? '', pad, infoY + dateLines.length * dateLineH, maxW, venueFontSize * 1.3);
+    // Build a date→schedule entry map for end times
+    const scheduleByDate = new Map();
+    for (const s of (event.schedule ?? [])) {
+      scheduleByDate.set(new Date(s.startTime).toDateString(), s);
+    }
+
+    performers.forEach((p, i) => {
+      const rowTop = listTop + i * rowH;
+
+      ctx.fillStyle = i % 2 === 0 ? 'rgba(255,45,45,0.13)' : 'rgba(255,255,255,0.06)';
+      ctx.fillRect(rowMargin, rowTop, W - rowMargin * 2, rowH);
+
+      const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+      const mons = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+      const d     = new Date(p.dateTime);
+      const sched = scheduleByDate.get(d.toDateString());
+      const timeRange = sched
+        ? formatTimeRange(sched.startTime, sched.endTime)
+        : formatTimeOnly(p.dateTime);
+      const dayLabel = `${days[d.getDay()]} ${d.getDate()} ${mons[d.getMonth()]} · ${timeRange}`;
+
+      // Line 1: date/time in accent
+      const line1Y = rowTop + innerPad + dateFontSize;
+      ctx.font      = `500 ${dateFontSize}px sans-serif`;
+      ctx.fillStyle = acc;
+      ctx.fillText(dayLabel, rowMargin + rowPad, line1Y);
+
+      // Line 2: artist in white
+      const line2Y = line1Y + dateFontSize * 0.3 + artistFontSize * 1.1;
+      ctx.font      = `500 ${artistFontSize}px sans-serif`;
+      ctx.fillStyle = '#FFFFFF';
+      let artistName = p.artist;
+      if (ctx.measureText(artistName).width > artistMaxW) {
+        while (artistName.length > 0 && ctx.measureText(artistName + '…').width > artistMaxW) {
+          artistName = artistName.slice(0, -1);
+        }
+        artistName += '…';
+      }
+      ctx.fillText(artistName, rowMargin + rowPad, line2Y);
+    });
+
+    // Venue below the list
+    const venueFontSize = Math.round(W * 0.03);
+    ctx.font      = `${venueFontSize}px sans-serif`;
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    wrapText(ctx, event.venue ?? '', pad, listTop + performers.length * rowH + W * 0.03, maxW, venueFontSize * 1.3);
+  } else {
+    // No performers — show schedule dates then venue
+    const dateFontSize = Math.round(W * 0.036);
+    const dateLineH    = dateFontSize * 1.45;
+    const dateLines    = event.schedule?.length
+      ? event.schedule.map(formatScheduleEntry)
+      : [formatDate(event.dateTime)];
+
+    ctx.font      = `500 ${dateFontSize}px sans-serif`;
+    ctx.fillStyle = acc;
+    dateLines.forEach((dl, i) => ctx.fillText(dl, pad, listTop + i * dateLineH));
+
+    const venueFontSize = Math.round(W * 0.03);
+    ctx.font      = `${venueFontSize}px sans-serif`;
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    wrapText(ctx, event.venue ?? '', pad, listTop + dateLines.length * dateLineH, maxW, venueFontSize * 1.3);
+  }
 
   // Watermark — bottom-right
   ctx.font      = `${topSize}px sans-serif`;

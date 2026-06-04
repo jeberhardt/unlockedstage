@@ -59,7 +59,7 @@ function stripScheduleFromText(text) {
     .trim();
 }
 
-export function buildFestivalCaption(event) {
+export function buildFestivalCaption(event, performers = []) {
   const scheduleLine = event.schedule?.length > 1
     ? event.schedule.map(s => `📅 ${longDate(s.startTime)} · ${time(s.startTime)} – ${time(s.endTime)}`)
     : [`📅 ${longDate(event.dateTime)}`];
@@ -70,12 +70,20 @@ export function buildFestivalCaption(event) {
 
   const handles = [event.instagramHandle, event.facebookHandle].filter(Boolean);
 
+  const performerLines = performers.map(p => {
+    const d    = new Date(p.dateTime);
+    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const mons = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `🎵 ${days[d.getDay()]} ${mons[d.getMonth()]} ${d.getDate()} — ${p.artist}`;
+  });
+
   return [
     `🎪 ${event.title || event.artist}`,
     ...scheduleLine,
     `📍 ${event.venue}, ${event.neighbourhood}`,
     '',
     notes,
+    ...(performerLines.length ? ['', ...performerLines] : []),
     '',
     ...(handles.length ? [handles.join(' '), ''] : []),
     `#festival ${hashtag(event.genre)} #Toronto #UnlockedStage #LiveMusic`,

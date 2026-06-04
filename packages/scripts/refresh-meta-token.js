@@ -53,16 +53,19 @@ async function main() {
   console.log(`   Page: ${page.name}`);
   console.log(`   Token: ${page.access_token.slice(0, 20)}…`);
 
-  console.log('\n3. Writing FB_ACCESS_TOKEN to .env…');
-  const __dir  = dirname(fileURLToPath(import.meta.url));
+  console.log('\n3. Writing FB_ACCESS_TOKEN and IG_ACCESS_TOKEN to .env…');
+  const __dir   = dirname(fileURLToPath(import.meta.url));
   const envPath = resolve(__dir, '..', '.env');
   let env = readFileSync(envPath, 'utf8');
 
-  if (env.includes('FB_ACCESS_TOKEN=')) {
-    env = env.replace(/^FB_ACCESS_TOKEN=.*/m, `FB_ACCESS_TOKEN=${page.access_token}`);
-  } else {
-    env = env.trimEnd() + `\nFB_ACCESS_TOKEN=${page.access_token}\n`;
+  function upsertEnvKey(src, key, value) {
+    return src.includes(`${key}=`)
+      ? src.replace(new RegExp(`^${key}=.*`, 'm'), `${key}=${value}`)
+      : src.trimEnd() + `\n${key}=${value}\n`;
   }
+
+  env = upsertEnvKey(env, 'FB_ACCESS_TOKEN', page.access_token);
+  env = upsertEnvKey(env, 'IG_ACCESS_TOKEN', page.access_token);
 
   writeFileSync(envPath, env);
   console.log('   ✓ .env updated.\n');
