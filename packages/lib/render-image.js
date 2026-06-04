@@ -48,8 +48,8 @@ function formatTimeRange(startStr, endStr) {
   };
   const s = fmt(startStr);
   const e = fmt(endStr);
-  if (s.ap === e.ap) return `${s.str}–${e.str} ${e.ap}`;
-  return `${s.str} ${s.ap}–${e.str} ${e.ap}`;
+  if (s.ap === e.ap) return `${s.str} - ${e.str} ${e.ap}`;
+  return `${s.str} ${s.ap} - ${e.str} ${e.ap}`;
 }
 
 function formatScheduleEntry(entry) {
@@ -163,8 +163,8 @@ export function renderEventImage(event, format = 'square', performers = []) {
   ctx.textAlign    = 'left';
   ctx.restore();
 
-  // Title (primary) or artist name if no title
-  const name         = event.title || event.artist || 'Unnamed Event';
+  // Title (primary) or artist name if no title — strip year references
+  const name         = (event.title || event.artist || 'Unnamed Event').replace(/\b(19|20)\d{2}\b/g, '').replace(/\s{2,}/g, ' ').trim();
   const nameFontSize = name.length > 22 ? Math.round(W * 0.082) : Math.round(W * 0.108);
   ctx.font           = `bold ${nameFontSize}px sans-serif`;
   const maxW         = W - pad * 2;
