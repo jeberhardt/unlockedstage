@@ -48,18 +48,36 @@ export function buildIndividualCaption(event) {
   ].filter(l => l !== undefined).join('\n').trim();
 }
 
+function stripScheduleFromText(text) {
+  // Remove "Weekday MonthName Day# (time–time)" clauses that duplicate the structured schedule
+  return text
+    .replace(/\b(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)\s+\w+\s+\d+\s*\([^)]*\)/gi, '')
+    .replace(/\s*,\s*,/g, ',')
+    .replace(/\s*,\s*\./g, '.')
+    .replace(/\.\.+/g, '.')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 export function buildFestivalCaption(event) {
   const scheduleLine = event.schedule?.length > 1
     ? event.schedule.map(s => `📅 ${longDate(s.startTime)} · ${time(s.startTime)} – ${time(s.endTime)}`)
     : [`📅 ${longDate(event.dateTime)}`];
+
+  const notes = event.notes
+    ? (event.schedule?.length ? stripScheduleFromText(event.notes) : event.notes).slice(0, 200)
+    : '';
+
+  const handles = [event.instagramHandle, event.facebookHandle].filter(Boolean);
 
   return [
     `🎪 ${event.title || event.artist}`,
     ...scheduleLine,
     `📍 ${event.venue}, ${event.neighbourhood}`,
     '',
-    event.notes ? event.notes.slice(0, 200) : '',
+    notes,
     '',
+    ...(handles.length ? [handles.join(' '), ''] : []),
     `#festival ${hashtag(event.genre)} #Toronto #UnlockedStage #LiveMusic`,
     '',
     link(event),

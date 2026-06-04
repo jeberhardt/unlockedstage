@@ -28,6 +28,23 @@ function formatDate(dtStr) {
   return `${days[d.getDay()]} ${d.getDate()} ${mons[d.getMonth()]} · ${h}:${m} ${ap}`;
 }
 
+function formatTimeOnly(dtStr) {
+  const d  = new Date(dtStr);
+  let h    = d.getHours();
+  const ap = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  const m = d.getMinutes().toString().padStart(2, '0');
+  return `${h}:${m} ${ap}`;
+}
+
+function formatScheduleEntry(entry) {
+  const d    = new Date(entry.startTime);
+  const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  const mons = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const day  = `${days[d.getDay()]} ${d.getDate()} ${mons[d.getMonth()]}`;
+  return `${day} · ${formatTimeOnly(entry.startTime)} – ${formatTimeOnly(entry.endTime)}`;
+}
+
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -81,26 +98,37 @@ export function renderEventImage(event, format = 'square') {
   ctx.stroke();
   ctx.restore();
 
-  // "FREE · GENRE" top-left line
-  const topY    = pad + W * 0.035;
+  // "TORONTO · GENRE" top-left
   const topSize = Math.round(W * 0.032);
-  ctx.font      = `bold ${topSize}px sans-serif`;
-  const freeLbl = 'FREE';
-  const freeTW  = ctx.measureText(freeLbl).width;
-  const freePad = W * 0.018;
-  const freePh  = topSize * 1.5;
-  roundRect(ctx, pad, topY - topSize, freeTW + freePad * 2, freePh, 4);
-  ctx.fillStyle = acc;
-  ctx.fill();
-  ctx.fillStyle = '#fff';
-  ctx.fillText(freeLbl, pad + freePad, topY);
-  const sep     = '  ·  ';
+  const topY    = pad + W * 0.035;
   ctx.font      = `500 ${topSize}px sans-serif`;
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.fillText(sep, pad + freeTW + freePad * 2, topY);
-  const sepW    = ctx.measureText(sep).width;
   ctx.fillStyle = acc;
-  ctx.fillText((GENRE_LABELS[event.genre] ?? 'Live Music').toUpperCase(), pad + freeTW + freePad * 2 + sepW, topY);
+  ctx.fillText('TORONTO', pad, topY);
+  const sep  = '  ·  ';
+  const toW  = ctx.measureText('TORONTO').width;
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.fillText(sep, pad + toW, topY);
+  ctx.fillStyle = acc;
+  ctx.fillText((GENRE_LABELS[event.genre] ?? 'Live Music').toUpperCase(), pad + toW + ctx.measureText(sep).width, topY);
+
+  // "FREE" diagonal ribbon — top-right corner
+  const ribbonDist = W * 0.28;
+  const ribbonH    = Math.round(W * 0.10);
+  const ribbonMx   = W - ribbonDist * 0.5;
+  const ribbonMy   = ribbonDist * 0.5;
+  ctx.save();
+  ctx.translate(ribbonMx, ribbonMy);
+  ctx.rotate(Math.PI / 4);
+  ctx.fillStyle = acc;
+  ctx.fillRect(-ribbonDist, -ribbonH / 2, ribbonDist * 2, ribbonH);
+  ctx.font         = `bold ${Math.round(ribbonH * 0.55)}px sans-serif`;
+  ctx.fillStyle    = '#fff';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('FREE', 0, 0);
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign    = 'left';
+  ctx.restore();
 
   // Title (primary) or artist name if no title
   const name         = event.title || event.artist || 'Unnamed Event';
@@ -134,31 +162,27 @@ export function renderEventImage(event, format = 'square') {
     titleBlockH = artistFontSize * 1.8;
   }
 
-  // Divider
-  const divY = nameY + totalH + titleBlockH + W * 0.04;
-  ctx.fillStyle   = acc;
-  ctx.globalAlpha = 0.4;
-  ctx.fillRect(pad, divY, W - pad * 2, 1.5);
-  ctx.globalAlpha = 1;
+  // Date(s) (accent) & venue
+  const dateFontSize = Math.round(W * 0.036);
+  const dateLineH    = dateFontSize * 1.45;
+  const infoY        = nameY + totalH + titleBlockH + W * 0.07;
+  const dateLines    = event.schedule?.length
+    ? event.schedule.map(formatScheduleEntry)
+    : [formatDate(event.dateTime)];
 
-  // Date & venue
-  const infoY = divY + W * 0.06;
-  ctx.font      = `500 ${Math.round(W * 0.036)}px sans-serif`;
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fillText(formatDate(event.dateTime), pad, infoY);
+  ctx.font      = `500 ${dateFontSize}px sans-serif`;
+  ctx.fillStyle = acc;
+  dateLines.forEach((dl, i) => ctx.fillText(dl, pad, infoY + i * dateLineH));
 
   ctx.font      = `${Math.round(W * 0.03)}px sans-serif`;
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  const venueText = (event.venue ?? '').length > 45
-    ? (event.venue ?? '').slice(0, 42) + '…'
-    : (event.venue ?? '');
-  ctx.fillText(venueText, pad, infoY + W * 0.052);
+  ctx.fillText(event.venue ?? '', pad, infoY + dateLines.length * dateLineH);
 
-  // Watermark (top-right, aligned with FREE badge)
+  // Watermark — bottom-right
   ctx.font      = `${topSize}px sans-serif`;
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
   ctx.textAlign = 'right';
-  ctx.fillText('unlockedstage.ca', W - pad, topY);
+  ctx.fillText('unlockedstage.ca', W - pad, H - pad * 0.6);
   ctx.textAlign = 'left';
 
   return canvas.toBuffer('image/png');
