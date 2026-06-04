@@ -37,3 +37,36 @@ export async function postToInstagram(imageUrl, caption) {
   console.log(`  ✓ Instagram post published (id: ${published.id})`);
   return published.id;
 }
+
+export async function postCarouselToInstagram(imageUrls, caption) {
+  // Create a child container for each slide
+  const childIds = [];
+  for (const [i, url] of imageUrls.entries()) {
+    console.log(`  → Instagram: creating carousel item ${i + 1}/${imageUrls.length}…`);
+    const container = await graphPost(`/${IG_USER_ID}/media`, {
+      image_url:        url,
+      is_carousel_item: 'true',
+      access_token:     IG_ACCESS_TOKEN,
+    });
+    await waitForContainer(container.id);
+    childIds.push(container.id);
+  }
+
+  console.log('  → Instagram: creating carousel container…');
+  const carousel = await graphPost(`/${IG_USER_ID}/media`, {
+    media_type:   'CAROUSEL',
+    children:     childIds.join(','),
+    caption,
+    access_token: IG_ACCESS_TOKEN,
+  });
+  await waitForContainer(carousel.id);
+
+  console.log('  → Instagram: publishing carousel…');
+  const published = await graphPost(`/${IG_USER_ID}/media_publish`, {
+    creation_id:  carousel.id,
+    access_token: IG_ACCESS_TOKEN,
+  });
+
+  console.log(`  ✓ Instagram carousel published (id: ${published.id})`);
+  return published.id;
+}

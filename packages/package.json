@@ -5,7 +5,8 @@
   "scripts": {
     "scrape": "node scripts/scrape-known-sources.js",
     "discover": "node scripts/discover-new-sources.js",
-    "post": "node scripts/post-to-social.js"
+    "post": "node scripts/post-to-social.js",
+    "weekend": "node scripts/post-weekend-roundup.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

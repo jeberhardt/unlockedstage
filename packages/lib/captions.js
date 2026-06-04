@@ -108,3 +108,20 @@ export function buildNextMonthCaption(events) {
   const month = new Date(events[0].dateTime).toLocaleString('en-CA', { month: 'long', timeZone: TZ });
   return buildListingCaption(`🗓 Free concerts coming up in ${month}:`, events);
 }
+
+export function buildWeekendCaption(events, handles = {}) {
+  const lines       = events.map(e => `🎵 ${e.title || e.artist}`);
+  const handleList  = Object.values(handles);
+  return [
+    '🗓 Free concerts this weekend in Toronto:',
+    '',
+    ...lines,
+    '',
+    'Check our other posts or visit unlockedstage.ca for details on each event and individual performances.',
+    '',
+    ...(handleList.length ? [handleList.join(' '), ''] : []),
+    '#Toronto #UnlockedStage #LiveMusic #FreeConcerts',
+    '',
+    '🎟️ unlockedstage.ca',
+  ].join('\n').trim();
+}

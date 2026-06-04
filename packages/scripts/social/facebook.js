@@ -22,3 +22,29 @@ export async function postTextToFacebook(caption) {
   console.log(`  ✓ Facebook post published (post_id: ${post.id})`);
   return post.id;
 }
+
+export async function postAlbumToFacebook(imageUrls, caption) {
+  // Upload each image as an unpublished photo to get its ID
+  const photoIds = [];
+  for (const [i, url] of imageUrls.entries()) {
+    console.log(`  → Facebook: uploading photo ${i + 1}/${imageUrls.length}…`);
+    const photo = await graphPost(`/${FB_PAGE_ID}/photos`, {
+      url,
+      published:    'false',
+      access_token: FB_ACCESS_TOKEN,
+    });
+    photoIds.push(photo.id);
+  }
+
+  // Create a single feed post with all photos attached
+  console.log('  → Facebook: posting multi-photo feed post…');
+  const attachedMedia = JSON.stringify(photoIds.map(id => ({ media_fbid: id })));
+  const post = await graphPost(`/${FB_PAGE_ID}/feed`, {
+    message:        caption,
+    attached_media: attachedMedia,
+    access_token:   FB_ACCESS_TOKEN,
+  });
+
+  console.log(`  ✓ Facebook album post published (post_id: ${post.id})`);
+  return post.id;
+}

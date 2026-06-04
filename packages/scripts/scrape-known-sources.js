@@ -35,6 +35,15 @@ async function fetchPageTextWithPuppeteer(url) {
   try {
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+
+    // Some calendars (e.g. Tockify) fire additional requests after networkidle2
+    // and render content asynchronously. Wait up to 10s for meaningful text to appear.
+    await page.waitForFunction(
+      min => document.body.innerText.replace(/\s+/g, ' ').trim().length > min,
+      { timeout: 10000 },
+      THIN_CONTENT_THRESHOLD,
+    ).catch(() => {}); // proceed even if content stays thin
+
     const html = await page.content();
     return extractText(html);
   } finally {
@@ -42,7 +51,31 @@ async function fetchPageTextWithPuppeteer(url) {
   }
 }
 
+async function fetchTockifyText(url) {
+  const calname = url.match(/tockify\.com\/([^/?#]+)/)?.[1];
+  if (!calname) throw new Error(`Cannot extract Tockify calendar name from ${url}`);
+
+  const res    = await fetch(`https://tockify.com/api/ngevent?calname=${calname}&max=100`, {
+    headers: { 'User-Agent': 'UnlockedStage-Bot/1.0' },
+  });
+  const json   = await res.json();
+  const events = json?.events ?? [];
+
+  return events.map(e => {
+    const title = e.content?.summary?.text     ?? '';
+    const desc  = e.content?.description?.text ?? '';
+    const start = e.when?.start?.millis ? new Date(e.when.start.millis).toISOString() : '';
+    const link  = `https://tockify.com/${calname}/detail/${e.eid?.uid}/${e.eid?.tid}`;
+    return `Event: ${title}\nDate: ${start}\nDescription: ${desc}\nLink: ${link}`;
+  }).join('\n\n');
+}
+
 async function fetchPageText(url) {
+  if (url.includes('tockify.com')) {
+    console.log('  → Tockify API…');
+    return fetchTockifyText(url);
+  }
+
   const res  = await fetch(url, { headers: { 'User-Agent': 'UnlockedStage-Bot/1.0' } });
   const html = await res.text();
   const text = extractText(html);
@@ -63,13 +96,15 @@ Default neighbourhood if not specified: "${source.neighbourhood}"
 
 Extract every distinct upcoming event and return a JSON array.
 Each event object must have:
-  - artist:        string (performer or event name)
-  - genre:         one of: ${VALID_GENRES.join(', ')}
-  - dateTime:      ISO 8601 string (Toronto timezone: -05:00 or -04:00 depending on DST)
-  - venue:         string
-  - neighbourhood: string
-  - externalLink:  string (full URL to the specific event page, or source URL as fallback)
-  - notes:         string (description, price, anything useful — optional)
+  - artist:           string (performer or event name)
+  - genre:            one of: ${VALID_GENRES.join(', ')}
+  - dateTime:         ISO 8601 string (Toronto timezone: -05:00 or -04:00 depending on DST)
+  - venue:            string
+  - neighbourhood:    string
+  - externalLink:     string (full URL to the specific event page, or source URL as fallback)
+  - notes:            string (description, price, anything useful — optional)
+  - instagramHandle:  string (Instagram handle if found on the page, e.g. "@dowestfest" — omit if not present)
+  - facebookHandle:   string (Facebook handle if found on the page — omit if not present)
 
 Rules:
 - Only include events after ${today}. Skip past events and undated listings.
@@ -126,14 +161,16 @@ async function main() {
 
     for (const event of newEvents) {
       const doc = {
-        _type:         'event',
-        artist:        event.artist,
-        genre:         VALID_GENRES.includes(event.genre) ? event.genre : 'other',
-        dateTime:      event.dateTime,
-        venue:         event.venue,
-        neighbourhood: event.neighbourhood,
-        externalLink:  event.externalLink,
-        notes:         event.notes ?? '',
+        _type:           'event',
+        artist:          event.artist,
+        genre:           VALID_GENRES.includes(event.genre) ? event.genre : 'other',
+        dateTime:        event.dateTime,
+        venue:           event.venue,
+        neighbourhood:   event.neighbourhood,
+        externalLink:    event.externalLink,
+        notes:           event.notes ?? '',
+        ...(event.instagramHandle ? { instagramHandle: event.instagramHandle } : {}),
+        ...(event.facebookHandle  ? { facebookHandle:  event.facebookHandle  } : {}),
       };
 
       if (DRY_RUN) {
