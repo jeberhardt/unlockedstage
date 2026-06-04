@@ -45,6 +45,24 @@ function formatScheduleEntry(entry) {
   return `${day} · ${formatTimeOnly(entry.startTime)} – ${formatTimeOnly(entry.endTime)}`;
 }
 
+function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+  const words = text.split(' ');
+  let line = '';
+  let currentY = y;
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      ctx.fillText(line, x, currentY);
+      line = word;
+      currentY += lineHeight;
+    } else {
+      line = test;
+    }
+  }
+  if (line) ctx.fillText(line, x, currentY);
+  return currentY; // returns y of last line drawn
+}
+
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -155,11 +173,11 @@ export function renderEventImage(event, format = 'square') {
   let titleBlockH = 0;
   if (event.title && event.artist && event.title !== event.artist) {
     const artistFontSize = Math.round(W * 0.038);
+    const artistLineH    = artistFontSize * 1.3;
     ctx.font      = `500 ${artistFontSize}px sans-serif`;
     ctx.fillStyle = 'rgba(255,255,255,0.65)';
-    const artistText = event.artist.length > 50 ? event.artist.slice(0, 47) + '…' : event.artist;
-    ctx.fillText(artistText, pad, nameY + totalH + artistFontSize * 1.2);
-    titleBlockH = artistFontSize * 1.8;
+    const lastY   = wrapText(ctx, event.artist, pad, nameY + totalH + artistFontSize * 1.2, maxW, artistLineH);
+    titleBlockH   = lastY - (nameY + totalH) + artistFontSize * 0.8;
   }
 
   // Date(s) (accent) & venue
@@ -174,9 +192,10 @@ export function renderEventImage(event, format = 'square') {
   ctx.fillStyle = acc;
   dateLines.forEach((dl, i) => ctx.fillText(dl, pad, infoY + i * dateLineH));
 
-  ctx.font      = `${Math.round(W * 0.03)}px sans-serif`;
+  const venueFontSize = Math.round(W * 0.03);
+  ctx.font      = `${venueFontSize}px sans-serif`;
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  ctx.fillText(event.venue ?? '', pad, infoY + dateLines.length * dateLineH);
+  wrapText(ctx, event.venue ?? '', pad, infoY + dateLines.length * dateLineH, maxW, venueFontSize * 1.3);
 
   // Watermark — bottom-right
   ctx.font      = `${topSize}px sans-serif`;
