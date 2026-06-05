@@ -250,7 +250,7 @@ function chunkEvents(events) {
 async function makeImagePublicUrl(buffer, suffix = '') {
   const filename = `weekend-roundup${suffix}-${Date.now()}.png`;
   const asset    = await sanity.assets.upload('image', buffer, { filename, contentType: 'image/png' });
-  return `${asset.url}?w=1080`;
+  return `${asset.url}?w=1080&fm=jpg`;
 }
 
 // ---------------------------------------------------------------------------

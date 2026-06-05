@@ -97,7 +97,7 @@ function roundRect(ctx, x, y, w, h, r) {
  * @param {'square'|'story'} format
  * @returns {Buffer} PNG buffer
  */
-export function renderEventImage(event, format = 'square', performers = []) {
+export function renderEventImage(event, format = 'square', performers = [], window = null) {
   const W = 1080;
   const H = format === 'story' ? 1350 : 1080;
   const canvas = createCanvas(W, H);
@@ -133,7 +133,7 @@ export function renderEventImage(event, format = 'square', performers = []) {
 
   // "TORONTO · GENRE" top-left
   const topSize = Math.round(W * 0.032);
-  const topY    = pad + W * 0.035;
+  const topY    = pad * 0.75;
   ctx.font      = `500 ${topSize}px sans-serif`;
   ctx.fillStyle = acc;
   ctx.fillText('TORONTO', pad, topY);
@@ -143,6 +143,14 @@ export function renderEventImage(event, format = 'square', performers = []) {
   ctx.fillText(sep, pad + toW, topY);
   ctx.fillStyle = acc;
   ctx.fillText((GENRE_LABELS[event.genre] ?? 'Live Music').toUpperCase(), pad + toW + ctx.measureText(sep).width, topY);
+
+  // Window label (e.g. "THIS WEEKEND") — below top label, same font
+  const windowLabels = { today: 'TODAY', weekend: 'THIS WEEKEND', week: 'THIS WEEK', month: 'THIS MONTH' };
+  if (window && windowLabels[window]) {
+    ctx.font      = `500 ${topSize}px sans-serif`;
+    ctx.fillStyle = acc;
+    ctx.fillText(windowLabels[window], pad, topY + topSize * 1.6);
+  }
 
   // "FREE" diagonal ribbon — top-right corner
   const ribbonDist = W * 0.28;
@@ -180,7 +188,7 @@ export function renderEventImage(event, format = 'square', performers = []) {
 
   const lineH      = nameFontSize * 1.05;
   const totalH     = lines.length * lineH;
-  const nameY      = H * 0.42 - totalH / 2;
+  const nameY      = W * 0.315 - totalH / 2;
   const lastTitleY = nameY + (lines.length - 1) * lineH;
   ctx.fillStyle = '#FFFFFF';
   lines.forEach((l, i) => ctx.fillText(l, pad, nameY + i * lineH));
@@ -200,6 +208,8 @@ export function renderEventImage(event, format = 'square', performers = []) {
   const listTop = lastTitleY + nameFontSize * 0.3 + titleBlockH + W * 0.025;
 
   if (performers.length) {
+    let performerTop = listTop;
+
     // Performer rows with alternating backgrounds — date/time on first line, artist on second
     const dateFontSize   = performers.length <= 4 ? Math.round(W * 0.034) : Math.round(W * 0.028);
     const artistFontSize = performers.length <= 4 ? Math.round(W * 0.042) : Math.round(W * 0.034);
@@ -207,7 +217,7 @@ export function renderEventImage(event, format = 'square', performers = []) {
     const rowH           = innerPad + dateFontSize * 1.1 + artistFontSize * 1.2 + innerPad;
     const rowMargin      = pad * 0.6;
     const rowPad         = pad * 0.25;
-    const artistMaxW     = W - rowMargin * 2 - rowPad * 2;
+    const artistMaxW     = W - pad * 2;
 
     // Build a date→schedule entry map for end times
     const scheduleByDate = new Map();
@@ -215,8 +225,33 @@ export function renderEventImage(event, format = 'square', performers = []) {
       scheduleByDate.set(new Date(s.startTime).toDateString(), s);
     }
 
+    const allSameDay = performers.every(p =>
+      new Date(p.dateTime).toDateString() === new Date(performers[0].dateTime).toDateString()
+    );
+
+    const venueFontSize = Math.round(W * 0.03);
+
+    if (allSameDay) {
+      const d0   = new Date(performers[0].dateTime);
+      const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      const mons = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const dateLabel = `${days[d0.getDay()]} ${d0.getDate()} ${mons[d0.getMonth()]}`;
+      const labelSize = Math.round(W * 0.028);
+      ctx.font      = `600 ${labelSize}px sans-serif`;
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillText(dateLabel, pad, performerTop + labelSize);
+      performerTop += labelSize * 1.5;
+
+      // Venue immediately below the date
+      ctx.font      = `${venueFontSize}px sans-serif`;
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      const venueText  = [event.venue, event.neighbourhood].filter(Boolean).join(', ');
+      const venueLastY = wrapText(ctx, venueText, pad, performerTop + venueFontSize, maxW, venueFontSize * 1.3);
+      performerTop = venueLastY + venueFontSize * 0.8;
+    }
+
     performers.forEach((p, i) => {
-      const rowTop = listTop + i * rowH;
+      const rowTop = performerTop + i * rowH;
 
       ctx.fillStyle = i % 2 === 0 ? 'rgba(255,45,45,0.13)' : 'rgba(255,255,255,0.06)';
       ctx.fillRect(rowMargin, rowTop, W - rowMargin * 2, rowH);
@@ -225,16 +260,19 @@ export function renderEventImage(event, format = 'square', performers = []) {
       const mons = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
       const d     = new Date(p.dateTime);
       const sched = scheduleByDate.get(d.toDateString());
-      const timeRange = sched
+      const useRange = sched && new Date(sched.startTime).getTime() === d.getTime();
+      const timeRange = useRange
         ? formatTimeRange(sched.startTime, sched.endTime)
         : formatTimeOnly(p.dateTime);
-      const dayLabel = `${days[d.getDay()]} ${d.getDate()} ${mons[d.getMonth()]} · ${timeRange}`;
+      const dayLabel = allSameDay
+        ? timeRange
+        : `${days[d.getDay()]} ${d.getDate()} ${mons[d.getMonth()]} · ${timeRange}`;
 
       // Line 1: date/time in accent
       const line1Y = rowTop + innerPad + dateFontSize;
       ctx.font      = `500 ${dateFontSize}px sans-serif`;
       ctx.fillStyle = acc;
-      ctx.fillText(dayLabel, rowMargin + rowPad, line1Y);
+      ctx.fillText(dayLabel, pad, line1Y);
 
       // Line 2: artist in white
       const line2Y = line1Y + dateFontSize * 0.3 + artistFontSize * 1.1;
@@ -247,14 +285,16 @@ export function renderEventImage(event, format = 'square', performers = []) {
         }
         artistName += '…';
       }
-      ctx.fillText(artistName, rowMargin + rowPad, line2Y);
+      ctx.fillText(artistName, pad, line2Y);
     });
 
-    // Venue below the list
-    const venueFontSize = Math.round(W * 0.03);
-    ctx.font      = `${venueFontSize}px sans-serif`;
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    wrapText(ctx, event.venue ?? '', pad, listTop + performers.length * rowH + W * 0.03, maxW, venueFontSize * 1.3);
+    // Venue below the list (multi-day only — single-day shows venue above rows)
+    if (!allSameDay) {
+      ctx.font      = `${venueFontSize}px sans-serif`;
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      const venueText = [event.venue, event.neighbourhood].filter(Boolean).join(', ');
+      wrapText(ctx, venueText, pad, performerTop + performers.length * rowH + W * 0.03, maxW, venueFontSize * 1.3);
+    }
   } else {
     // No performers — show schedule dates then venue
     const dateFontSize = Math.round(W * 0.036);
@@ -270,7 +310,8 @@ export function renderEventImage(event, format = 'square', performers = []) {
     const venueFontSize = Math.round(W * 0.03);
     ctx.font      = `${venueFontSize}px sans-serif`;
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    wrapText(ctx, event.venue ?? '', pad, listTop + dateLines.length * dateLineH, maxW, venueFontSize * 1.3);
+    const venueText = [event.venue, event.neighbourhood].filter(Boolean).join(', ');
+    wrapText(ctx, venueText, pad, listTop + dateLines.length * dateLineH, maxW, venueFontSize * 1.3);
   }
 
   // Watermark — bottom-right

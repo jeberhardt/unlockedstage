@@ -27,8 +27,8 @@ import { postToInstagram }                                from './social/instagr
 import { postToFacebook }                                 from './social/facebook.js';
 
 const DRY_RUN   = process.argv.includes('--dry-run');
-const FORMAT    = process.argv.includes('--format') && process.argv[process.argv.indexOf('--format') + 1] === 'story'
-  ? 'story' : 'square';
+const FORMAT    = process.argv.includes('--format') && process.argv[process.argv.indexOf('--format') + 1] === 'square'
+  ? 'square' : 'story';
 const SINGLE_ID = process.argv.includes('--id')
   ? process.argv[process.argv.indexOf('--id') + 1]
   : null;
@@ -101,7 +101,7 @@ async function fetchPerformers(event) {
 async function makeImagePublicUrl(buffer, eventId) {
   const filename = `event-${eventId}-${Date.now()}.png`;
   const asset    = await sanity.assets.upload('image', buffer, { filename, contentType: 'image/png' });
-  return `${asset.url}?w=1080`;
+  return `${asset.url}?w=1080&fm=jpg`;
 }
 
 async function processEvent(event) {
@@ -110,8 +110,8 @@ async function processEvent(event) {
   const performers = await fetchPerformers(event);
   if (performers.length) console.log(`  ${performers.length} performer(s): ${performers.map(p => p.artist).join(', ')}`);
 
-  const buffer  = renderEventImage(event, FORMAT, performers);
-  const caption = buildFestivalCaption(event, performers);
+  const buffer  = renderEventImage(event, FORMAT, performers, WINDOW);
+  const caption = buildFestivalCaption(event, performers, WINDOW);
 
   console.log('  Caption preview:\n' + caption.split('\n').map(l => `    ${l}`).join('\n'));
 

@@ -27,6 +27,30 @@ function time(iso) {
   });
 }
 
+function shortTime(dtStr) {
+  const d  = new Date(dtStr);
+  let h    = d.getHours();
+  const ap = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  const m = d.getMinutes();
+  return m === 0 ? `${h} ${ap}` : `${h}:${String(m).padStart(2,'0')} ${ap}`;
+}
+
+function shortTimeRange(startStr, endStr) {
+  const fmt = (dtStr) => {
+    const d  = new Date(dtStr);
+    let h    = d.getHours();
+    const ap = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    const m = d.getMinutes();
+    return { h, m, ap, str: m === 0 ? `${h}` : `${h}:${String(m).padStart(2,'0')}` };
+  };
+  const s = fmt(startStr);
+  const e = fmt(endStr);
+  if (s.ap === e.ap) return `${s.str} - ${e.str} ${e.ap}`;
+  return `${s.str} ${s.ap} - ${e.str} ${e.ap}`;
+}
+
 function link(event) {
   return event.externalLink ? `🎟️ ${event.externalLink}` : '🎟️ unlockedstage.ca';
 }
@@ -59,7 +83,7 @@ function stripScheduleFromText(text) {
     .trim();
 }
 
-export function buildFestivalCaption(event, performers = []) {
+export function buildFestivalCaption(event, performers = [], window = null) {
   const scheduleLine = event.schedule?.length > 1
     ? event.schedule.map(s => `📅 ${longDate(s.startTime)} · ${time(s.startTime)} – ${time(s.endTime)}`)
     : [`📅 ${longDate(event.dateTime)}`];
@@ -70,20 +94,49 @@ export function buildFestivalCaption(event, performers = []) {
 
   const handles = [event.instagramHandle, event.facebookHandle].filter(Boolean);
 
+  const scheduleByDate = new Map();
+  for (const s of (event.schedule ?? [])) {
+    scheduleByDate.set(new Date(s.startTime).toDateString(), s);
+  }
+
+  const allSameDay = performers.length > 0 && performers.every(p =>
+    new Date(p.dateTime).toDateString() === new Date(performers[0].dateTime).toDateString()
+  );
+
   const performerLines = performers.map(p => {
-    const d    = new Date(p.dateTime);
+    const d        = new Date(p.dateTime);
+    const days     = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const mons     = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const sched    = scheduleByDate.get(d.toDateString());
+    const useRange = sched && new Date(sched.startTime).getTime() === d.getTime();
+    const t        = useRange ? shortTimeRange(sched.startTime, sched.endTime) : shortTime(p.dateTime);
+    const prefix   = allSameDay ? t : `${days[d.getDay()]} ${mons[d.getMonth()]} ${d.getDate()} · ${t}`;
+    return `🎵 ${prefix} — ${p.artist}`;
+  });
+
+  const sharedDateLine = allSameDay && performers.length ? (() => {
+    const d    = new Date(performers[0].dateTime);
     const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     const mons = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return `🎵 ${days[d.getDay()]} ${mons[d.getMonth()]} ${d.getDate()} — ${p.artist}`;
-  });
+    return `${days[d.getDay()]} ${mons[d.getMonth()]} ${d.getDate()}`;
+  })() : null;
+
+  const windowLabels   = { today: 'Performing today:', weekend: 'Performing this weekend:', week: 'Performing this week:', month: 'Performing this month:' };
+  const windowNoPerf   = { today: 'Today', weekend: 'This Weekend', week: 'This Week', month: 'This Month' };
+  const windowLabel    = window ? (performerLines.length ? (windowLabels[window] ?? `Performing ${window}:`) : (windowNoPerf[window] ?? window)) : null;
 
   return [
     `🎪 ${event.title || event.artist}`,
-    ...scheduleLine,
     `📍 ${event.venue}, ${event.neighbourhood}`,
+    ...(windowLabel && !performerLines.length ? [windowLabel] : []),
+    ...(performerLines.length ? [] : scheduleLine),
     '',
+    ...(performerLines.length ? [
+      ...(windowLabel ? [windowLabel] : []),
+      ...(sharedDateLine ? [sharedDateLine] : []),
+      ...performerLines, '',
+    ] : []),
     notes,
-    ...(performerLines.length ? ['', ...performerLines] : []),
     '',
     ...(handles.length ? [handles.join(' '), ''] : []),
     `#festival ${hashtag(event.genre)} #Toronto #UnlockedStage #LiveMusic`,
