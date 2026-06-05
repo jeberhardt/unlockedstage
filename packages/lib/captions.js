@@ -89,7 +89,10 @@ export function buildFestivalCaption(event, performers = [], window = null) {
     : [`📅 ${longDate(event.dateTime)}`];
 
   const notes = event.notes
-    ? (event.schedule?.length ? stripScheduleFromText(event.notes) : event.notes).slice(0, 200)
+    ? (event.schedule?.length
+        ? stripScheduleFromText(event.notes.split('\n\n')[0])
+        : event.notes.split('\n\n')[0]
+      ).slice(0, 200)
     : '';
 
   const handles = [event.instagramHandle, event.facebookHandle].filter(Boolean);

@@ -187,8 +187,7 @@ export function renderEventImage(event, format = 'square', performers = [], wind
   if (line) lines.push(line);
 
   const lineH      = nameFontSize * 1.05;
-  const totalH     = lines.length * lineH;
-  const nameY      = W * 0.315 - totalH / 2;
+  const nameY      = W * 0.185 + nameFontSize * 0.75;
   const lastTitleY = nameY + (lines.length - 1) * lineH;
   ctx.fillStyle = '#FFFFFF';
   lines.forEach((l, i) => ctx.fillText(l, pad, nameY + i * lineH));
@@ -327,7 +326,14 @@ export function renderEventImage(event, format = 'square', performers = [], wind
     ctx.font      = `${venueFontSize}px sans-serif`;
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
     const venueText = [event.venue, event.neighbourhood].filter(Boolean).join(', ');
-    wrapText(ctx, venueText, pad, listTop + dateLines.length * dateLineH, maxW, venueFontSize * 1.3);
+    const venueLastY = wrapText(ctx, venueText, pad, listTop + dateLines.length * dateLineH, maxW, venueFontSize * 1.3);
+
+    if (event.notes) {
+      const notesFontSize = Math.round(W * 0.032);
+      ctx.font      = `${notesFontSize}px sans-serif`;
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      wrapText(ctx, event.notes.split('\n\n')[0], pad, venueLastY + notesFontSize * 1.6, maxW, notesFontSize * 1.5);
+    }
   }
 
   // Watermark — bottom-right
