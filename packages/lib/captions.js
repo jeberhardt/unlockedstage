@@ -84,7 +84,7 @@ function stripScheduleFromText(text) {
 }
 
 export function buildFestivalCaption(event, performers = [], window = null) {
-  const scheduleLine = event.schedule?.length > 1
+  const scheduleLine = event.schedule?.length
     ? event.schedule.map(s => `📅 ${longDate(s.startTime)} · ${time(s.startTime)} – ${time(s.endTime)}`)
     : [`📅 ${longDate(event.dateTime)}`];
 
@@ -107,9 +107,7 @@ export function buildFestivalCaption(event, performers = [], window = null) {
     const d        = new Date(p.dateTime);
     const days     = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     const mons     = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const sched    = scheduleByDate.get(d.toDateString());
-    const useRange = sched && new Date(sched.startTime).getTime() === d.getTime();
-    const t        = useRange ? shortTimeRange(sched.startTime, sched.endTime) : shortTime(p.dateTime);
+    const t = shortTime(p.dateTime);
     const prefix   = allSameDay ? t : `${days[d.getDay()]} ${mons[d.getMonth()]} ${d.getDate()} · ${t}`;
     return `🎵 ${prefix} — ${p.artist}`;
   });

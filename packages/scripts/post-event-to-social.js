@@ -93,7 +93,7 @@ async function fetchPerformers(event) {
   const end   = windowBounds?.end   ?? event.schedule[event.schedule.length - 1].endTime;
 
   return sanity.fetch(`
-    *[_type == "event" && venue == $venue && !defined(title) && dateTime >= $start && dateTime <= $end]
+    *[_type == "event" && venue == $venue && !(title != null) && dateTime >= $start && dateTime <= $end]
     | order(dateTime asc) { artist, dateTime }
   `, { venue: event.venue, start, end });
 }

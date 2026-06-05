@@ -210,13 +210,11 @@ export function renderEventImage(event, format = 'square', performers = [], wind
   if (performers.length) {
     let performerTop = listTop;
 
-    // Performer rows with alternating backgrounds — date/time on first line, artist on second
+    // Performer rows — single line (time · artist) when all on same day, two lines otherwise
     const dateFontSize   = performers.length <= 4 ? Math.round(W * 0.034) : Math.round(W * 0.028);
     const artistFontSize = performers.length <= 4 ? Math.round(W * 0.042) : Math.round(W * 0.034);
     const innerPad       = dateFontSize * 0.7;
-    const rowH           = innerPad + dateFontSize * 1.1 + artistFontSize * 1.2 + innerPad;
     const rowMargin      = pad * 0.6;
-    const rowPad         = pad * 0.25;
     const artistMaxW     = W - pad * 2;
 
     // Build a date→schedule entry map for end times
@@ -235,10 +233,10 @@ export function renderEventImage(event, format = 'square', performers = [], wind
       const d0   = new Date(performers[0].dateTime);
       const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
       const mons = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      const dateLabel = `${days[d0.getDay()]} ${d0.getDate()} ${mons[d0.getMonth()]}`;
-      const labelSize = Math.round(W * 0.028);
+      const dateLabel = `${days[d0.getDay()]} ${d0.getDate()} ${mons[d0.getMonth()]}`.toUpperCase();
+      const labelSize = Math.round(W * 0.038);
       ctx.font      = `600 ${labelSize}px sans-serif`;
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillStyle = acc;
       ctx.fillText(dateLabel, pad, performerTop + labelSize);
       performerTop += labelSize * 1.5;
 
@@ -250,6 +248,10 @@ export function renderEventImage(event, format = 'square', performers = [], wind
       performerTop = venueLastY + venueFontSize * 0.8;
     }
 
+    const singleLineH = innerPad + artistFontSize * 1.2 + innerPad;
+    const twoLineH    = innerPad + dateFontSize * 1.1 + artistFontSize * 1.2 + innerPad;
+    const rowH        = allSameDay ? singleLineH : twoLineH;
+
     performers.forEach((p, i) => {
       const rowTop = performerTop + i * rowH;
 
@@ -258,34 +260,48 @@ export function renderEventImage(event, format = 'square', performers = [], wind
 
       const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
       const mons = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-      const d     = new Date(p.dateTime);
-      const sched = scheduleByDate.get(d.toDateString());
-      const useRange = sched && new Date(sched.startTime).getTime() === d.getTime();
-      const timeRange = useRange
-        ? formatTimeRange(sched.startTime, sched.endTime)
-        : formatTimeOnly(p.dateTime);
-      const dayLabel = allSameDay
-        ? timeRange
-        : `${days[d.getDay()]} ${d.getDate()} ${mons[d.getMonth()]} · ${timeRange}`;
+      const d       = new Date(p.dateTime);
+      const timeStr = formatTimeOnly(p.dateTime);
 
-      // Line 1: date/time in accent
-      const line1Y = rowTop + innerPad + dateFontSize;
-      ctx.font      = `500 ${dateFontSize}px sans-serif`;
-      ctx.fillStyle = acc;
-      ctx.fillText(dayLabel, pad, line1Y);
+      if (allSameDay) {
+        // Single line: "2 PM  Artist Name" — time in accent, artist in white
+        const lineY = rowTop + innerPad + artistFontSize;
+        ctx.font      = `500 ${dateFontSize}px sans-serif`;
+        ctx.fillStyle = acc;
+        ctx.fillText(timeStr, pad, lineY);
+        const timeW = ctx.measureText(timeStr + '  ').width;
 
-      // Line 2: artist in white
-      const line2Y = line1Y + dateFontSize * 0.3 + artistFontSize * 1.1;
-      ctx.font      = `500 ${artistFontSize}px sans-serif`;
-      ctx.fillStyle = '#FFFFFF';
-      let artistName = p.artist;
-      if (ctx.measureText(artistName).width > artistMaxW) {
-        while (artistName.length > 0 && ctx.measureText(artistName + '…').width > artistMaxW) {
-          artistName = artistName.slice(0, -1);
+        ctx.font      = `500 ${artistFontSize}px sans-serif`;
+        ctx.fillStyle = '#FFFFFF';
+        let artistName = p.artist;
+        const nameMaxW = artistMaxW - timeW;
+        if (ctx.measureText(artistName).width > nameMaxW) {
+          while (artistName.length > 0 && ctx.measureText(artistName + '…').width > nameMaxW) {
+            artistName = artistName.slice(0, -1);
+          }
+          artistName += '…';
         }
-        artistName += '…';
+        ctx.fillText(artistName, pad + timeW, lineY);
+      } else {
+        // Two lines: date/time on top, artist below
+        const dayLabel = `${days[d.getDay()]} ${d.getDate()} ${mons[d.getMonth()]} · ${timeStr}`;
+        const line1Y   = rowTop + innerPad + dateFontSize;
+        ctx.font      = `500 ${dateFontSize}px sans-serif`;
+        ctx.fillStyle = acc;
+        ctx.fillText(dayLabel, pad, line1Y);
+
+        const line2Y = line1Y + dateFontSize * 0.3 + artistFontSize * 1.1;
+        ctx.font      = `500 ${artistFontSize}px sans-serif`;
+        ctx.fillStyle = '#FFFFFF';
+        let artistName = p.artist;
+        if (ctx.measureText(artistName).width > artistMaxW) {
+          while (artistName.length > 0 && ctx.measureText(artistName + '…').width > artistMaxW) {
+            artistName = artistName.slice(0, -1);
+          }
+          artistName += '…';
+        }
+        ctx.fillText(artistName, pad, line2Y);
       }
-      ctx.fillText(artistName, pad, line2Y);
     });
 
     // Venue below the list (multi-day only — single-day shows venue above rows)
