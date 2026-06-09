@@ -2,8 +2,16 @@
 // Renders an event to a PNG Buffer using node-canvas.
 // The drawing logic mirrors the browser canvas widget so posts look identical.
 
-import { createCanvas } from '@napi-rs/canvas';
-import { VALID_GENRES } from './config.js';
+import { createCanvas, GlobalFonts } from '@napi-rs/canvas';
+import { join, dirname }             from 'node:path';
+import { fileURLToPath }             from 'node:url';
+import { VALID_GENRES }              from './config.js';
+
+const __dir = dirname(fileURLToPath(import.meta.url));
+GlobalFonts.registerFromPath(join(__dir, '../assets/Inter-Regular.ttf'),  'Inter');
+GlobalFonts.registerFromPath(join(__dir, '../assets/Inter-Medium.ttf'),   'Inter');
+GlobalFonts.registerFromPath(join(__dir, '../assets/Inter-SemiBold.ttf'), 'Inter');
+GlobalFonts.registerFromPath(join(__dir, '../assets/Inter-Bold.ttf'),     'Inter');
 
 // Optional: register a custom font if you have one locally
 // registerFont('./assets/BebasNeue-Regular.ttf', { family: 'Bebas Neue' });
@@ -12,6 +20,7 @@ const PALETTES = {
   bg:     '#0A1628',
   accent: '#FF2D2D',
 };
+
 
 const GENRE_LABELS = {
   jazz: 'Jazz', indie: 'Indie', classical: 'Classical', folk: 'Folk',
@@ -134,7 +143,7 @@ export function renderEventImage(event, format = 'square', performers = [], wind
   // "TORONTO · GENRE" top-left
   const topSize = Math.round(W * 0.032);
   const topY    = pad * 0.75;
-  ctx.font      = `500 ${topSize}px sans-serif`;
+  ctx.font      = `500 ${topSize}px Inter`;
   ctx.fillStyle = acc;
   ctx.fillText('TORONTO', pad, topY);
   const sep  = '  ·  ';
@@ -144,12 +153,27 @@ export function renderEventImage(event, format = 'square', performers = [], wind
   ctx.fillStyle = acc;
   ctx.fillText((GENRE_LABELS[event.genre] ?? 'Live Music').toUpperCase(), pad + toW + ctx.measureText(sep).width, topY);
 
-  // Window label (e.g. "THIS WEEKEND") — below top label, same font
-  const windowLabels = { today: 'TODAY', weekend: 'THIS WEEKEND', week: 'THIS WEEK', month: 'THIS MONTH' };
+  // Window label badge (e.g. "THIS WEEKEND")
+  const windowLabels = { today: 'TODAY', tomorrow: 'TOMORROW', weekend: 'THIS WEEKEND', week: 'THIS WEEK', month: 'THIS MONTH' };
   if (window && windowLabels[window]) {
-    ctx.font      = `500 ${topSize}px sans-serif`;
+    const label      = windowLabels[window];
+    const badgeFontSize = topSize;
+    ctx.font         = `600 ${badgeFontSize}px Inter`;
+    const labelW     = ctx.measureText(label).width;
+    const badgePadX  = badgeFontSize * 0.6;
+    const badgePadY  = badgeFontSize * 0.3;
+    const badgeX     = pad - badgePadX;
+    const badgeY     = topY + topSize * 0.9;
+    const badgeH     = badgeFontSize + badgePadY * 2;
+    const radius     = badgeH / 2;
+    // Pill background
     ctx.fillStyle = acc;
-    ctx.fillText(windowLabels[window], pad, topY + topSize * 1.6);
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, labelW + badgePadX * 2, badgeH, radius);
+    ctx.fill();
+    // Label text
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(label, pad, badgeY + badgePadY + badgeFontSize * 0.85);
   }
 
   // "FREE" diagonal ribbon — top-right corner
@@ -162,7 +186,7 @@ export function renderEventImage(event, format = 'square', performers = [], wind
   ctx.rotate(Math.PI / 4);
   ctx.fillStyle = acc;
   ctx.fillRect(-ribbonDist, -ribbonH / 2, ribbonDist * 2, ribbonH);
-  ctx.font         = `bold ${Math.round(ribbonH * 0.55)}px sans-serif`;
+  ctx.font         = `bold ${Math.round(ribbonH * 0.55)}px Inter`;
   ctx.fillStyle    = '#fff';
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
@@ -174,7 +198,7 @@ export function renderEventImage(event, format = 'square', performers = [], wind
   // Title (primary) or artist name if no title — strip year references
   const name         = (event.title || event.artist || 'Unnamed Event').replace(/\b(19|20)\d{2}\b/g, '').replace(/\s{2,}/g, ' ').trim();
   const nameFontSize = name.length > 22 ? Math.round(W * 0.082) : Math.round(W * 0.108);
-  ctx.font           = `bold ${nameFontSize}px sans-serif`;
+  ctx.font           = `bold ${nameFontSize}px Inter`;
   const maxW         = W - pad * 2;
   const words        = name.split(' ');
   const lines        = [];
@@ -197,7 +221,7 @@ export function renderEventImage(event, format = 'square', performers = [], wind
   if (!performers.length && event.title && event.artist && event.title !== event.artist) {
     const artistFontSize = Math.round(W * 0.038);
     const artistLineH    = artistFontSize * 1.3;
-    ctx.font      = `500 ${artistFontSize}px sans-serif`;
+    ctx.font      = `500 ${artistFontSize}px Inter`;
     ctx.fillStyle = 'rgba(255,255,255,0.65)';
     const artistY = lastTitleY + nameFontSize * 0.35 + artistFontSize;
     const lastY   = wrapText(ctx, event.artist, pad, artistY, maxW, artistLineH);
@@ -234,13 +258,13 @@ export function renderEventImage(event, format = 'square', performers = [], wind
       const mons = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       const dateLabel = `${days[d0.getDay()]} ${d0.getDate()} ${mons[d0.getMonth()]}`.toUpperCase();
       const labelSize = Math.round(W * 0.038);
-      ctx.font      = `600 ${labelSize}px sans-serif`;
+      ctx.font      = `600 ${labelSize}px Inter`;
       ctx.fillStyle = acc;
       ctx.fillText(dateLabel, pad, performerTop + labelSize);
       performerTop += labelSize * 1.5;
 
       // Venue immediately below the date
-      ctx.font      = `${venueFontSize}px sans-serif`;
+      ctx.font      = `${venueFontSize}px Inter`;
       ctx.fillStyle = 'rgba(255,255,255,0.6)';
       const venueText  = [event.venue, event.neighbourhood].filter(Boolean).join(', ');
       const venueLastY = wrapText(ctx, venueText, pad, performerTop + venueFontSize, maxW, venueFontSize * 1.3);
@@ -265,12 +289,12 @@ export function renderEventImage(event, format = 'square', performers = [], wind
       if (allSameDay) {
         // Single line: "2 PM  Artist Name" — time in accent, artist in white
         const lineY = rowTop + innerPad + artistFontSize;
-        ctx.font      = `500 ${dateFontSize}px sans-serif`;
+        ctx.font      = `500 ${dateFontSize}px Inter`;
         ctx.fillStyle = acc;
         ctx.fillText(timeStr, pad, lineY);
         const timeW = ctx.measureText(timeStr + '  ').width;
 
-        ctx.font      = `500 ${artistFontSize}px sans-serif`;
+        ctx.font      = `500 ${artistFontSize}px Inter`;
         ctx.fillStyle = '#FFFFFF';
         let artistName = p.artist;
         const nameMaxW = artistMaxW - timeW;
@@ -285,12 +309,12 @@ export function renderEventImage(event, format = 'square', performers = [], wind
         // Two lines: date/time on top, artist below
         const dayLabel = `${days[d.getDay()]} ${d.getDate()} ${mons[d.getMonth()]} · ${timeStr}`;
         const line1Y   = rowTop + innerPad + dateFontSize;
-        ctx.font      = `500 ${dateFontSize}px sans-serif`;
+        ctx.font      = `500 ${dateFontSize}px Inter`;
         ctx.fillStyle = acc;
         ctx.fillText(dayLabel, pad, line1Y);
 
         const line2Y = line1Y + dateFontSize * 0.3 + artistFontSize * 1.1;
-        ctx.font      = `500 ${artistFontSize}px sans-serif`;
+        ctx.font      = `500 ${artistFontSize}px Inter`;
         ctx.fillStyle = '#FFFFFF';
         let artistName = p.artist;
         if (ctx.measureText(artistName).width > artistMaxW) {
@@ -305,7 +329,7 @@ export function renderEventImage(event, format = 'square', performers = [], wind
 
     // Venue below the list (multi-day only — single-day shows venue above rows)
     if (!allSameDay) {
-      ctx.font      = `${venueFontSize}px sans-serif`;
+      ctx.font      = `${venueFontSize}px Inter`;
       ctx.fillStyle = 'rgba(255,255,255,0.6)';
       const venueText = [event.venue, event.neighbourhood].filter(Boolean).join(', ');
       wrapText(ctx, venueText, pad, performerTop + performers.length * rowH + W * 0.03, maxW, venueFontSize * 1.3);
@@ -318,26 +342,26 @@ export function renderEventImage(event, format = 'square', performers = [], wind
       ? event.schedule.map(formatScheduleEntry)
       : [formatDate(event.dateTime)];
 
-    ctx.font      = `500 ${dateFontSize}px sans-serif`;
+    ctx.font      = `500 ${dateFontSize}px Inter`;
     ctx.fillStyle = acc;
     dateLines.forEach((dl, i) => ctx.fillText(dl, pad, listTop + i * dateLineH));
 
     const venueFontSize = Math.round(W * 0.03);
-    ctx.font      = `${venueFontSize}px sans-serif`;
+    ctx.font      = `${venueFontSize}px Inter`;
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
     const venueText = [event.venue, event.neighbourhood].filter(Boolean).join(', ');
     const venueLastY = wrapText(ctx, venueText, pad, listTop + dateLines.length * dateLineH, maxW, venueFontSize * 1.3);
 
     if (event.notes) {
       const notesFontSize = Math.round(W * 0.032);
-      ctx.font      = `${notesFontSize}px sans-serif`;
+      ctx.font      = `${notesFontSize}px Inter`;
       ctx.fillStyle = 'rgba(255,255,255,0.75)';
       wrapText(ctx, event.notes.split('\n\n')[0], pad, venueLastY + notesFontSize * 1.6, maxW, notesFontSize * 1.5);
     }
   }
 
   // Watermark — bottom-right
-  ctx.font      = `${topSize}px sans-serif`;
+  ctx.font      = `${topSize}px Inter`;
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
   ctx.textAlign = 'right';
   ctx.fillText('unlockedstage.ca', W - pad, H - pad * 0.6);
@@ -392,7 +416,7 @@ export function renderWeekendImage(events, format = 'square', page = 1, totalPag
   // "TORONTO" label — top-left plain text
   const topSize = Math.round(W * 0.032);
   const topY    = pad + W * 0.035;
-  ctx.font      = `500 ${topSize}px sans-serif`;
+  ctx.font      = `500 ${topSize}px Inter`;
   ctx.fillStyle = acc;
   ctx.fillText('TORONTO', pad, topY);
 
@@ -406,7 +430,7 @@ export function renderWeekendImage(events, format = 'square', page = 1, totalPag
   ctx.rotate(Math.PI / 4);
   ctx.fillStyle = acc;
   ctx.fillRect(-ribbonDist, -ribbonH / 2, ribbonDist * 2, ribbonH);
-  ctx.font          = `bold ${Math.round(ribbonH * 0.55)}px sans-serif`;
+  ctx.font          = `bold ${Math.round(ribbonH * 0.55)}px Inter`;
   ctx.fillStyle     = '#fff';
   ctx.textAlign     = 'center';
   ctx.textBaseline  = 'middle';
@@ -418,14 +442,14 @@ export function renderWeekendImage(events, format = 'square', page = 1, totalPag
   // Hero: "THIS WEEKEND"
   const heroText     = 'THIS WEEKEND';
   const heroFontSize = Math.round(W * 0.108);
-  ctx.font           = `bold ${heroFontSize}px sans-serif`;
+  ctx.font           = `bold ${heroFontSize}px Inter`;
   const heroY        = H * 0.28;
   ctx.fillStyle      = '#FFFFFF';
   ctx.fillText(heroText, pad, heroY);
 
   // Date label: e.g. "JUN 6 – 8" — tucked close under the title
   const dateFontSize = Math.round(W * 0.042);
-  ctx.font           = `500 ${dateFontSize}px sans-serif`;
+  ctx.font           = `500 ${dateFontSize}px Inter`;
   ctx.fillStyle      = acc;
   const dateY        = heroY + heroFontSize * 0.88;
   ctx.fillText(dateLabel, pad, dateY);
@@ -440,7 +464,7 @@ export function renderWeekendImage(events, format = 'square', page = 1, totalPag
   const lineH   = listFontSize * 1.45;
   const listTop = divY - W * 0.04;
 
-  ctx.font = `500 ${listFontSize}px sans-serif`;
+  ctx.font = `500 ${listFontSize}px Inter`;
 
   const rowMargin  = pad * 0.6;
   const rowPad     = pad * 0.25;
@@ -462,14 +486,14 @@ export function renderWeekendImage(events, format = 'square', page = 1, totalPag
     ctx.fillStyle = i % 2 === 0 ? 'rgba(255,45,45,0.13)' : 'rgba(255,255,255,0.06)';
     ctx.fillRect(rowMargin, rowTop, W - rowMargin * 2, lineH);
 
-    ctx.font      = `500 ${listFontSize}px sans-serif`;
+    ctx.font      = `500 ${listFontSize}px Inter`;
     ctx.fillStyle = '#FFFFFF';
     ctx.fillText(displayName, rowMargin + rowPad, rowCentY);
   });
   ctx.textBaseline = 'alphabetic';
 
   // Watermark — bottom-right
-  ctx.font      = `${topSize}px sans-serif`;
+  ctx.font      = `${topSize}px Inter`;
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
   ctx.textAlign = 'right';
   ctx.fillText('unlockedstage.ca', W - pad, H - pad * 0.6);
@@ -477,7 +501,7 @@ export function renderWeekendImage(events, format = 'square', page = 1, totalPag
 
   // Page indicator — bottom-left (only for multi-slide carousels)
   if (totalPages > 1) {
-    ctx.font      = `${topSize}px sans-serif`;
+    ctx.font      = `${topSize}px Inter`;
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
     ctx.fillText(`${page} / ${totalPages}`, pad, H - pad * 0.6);
   }

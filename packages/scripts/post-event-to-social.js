@@ -58,6 +58,11 @@ function getWindowBounds(window) {
     return { start: iso(today, '00:00:00'), end: iso(today, '23:59:59') };
   }
 
+  if (window === 'tomorrow') {
+    const tomorrow = new Date(Date.UTC(y, m - 1, d + 1));
+    return { start: iso(tomorrow, '00:00:00'), end: iso(tomorrow, '23:59:59') };
+  }
+
   if (window === 'weekend') {
     const shortDay = now.toLocaleDateString('en-CA', { weekday: 'short', timeZone: TZ });
     const dayNum   = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }[shortDay];

@@ -122,8 +122,8 @@ export function buildFestivalCaption(event, performers = [], window = null) {
     return `${days[d.getDay()]} ${mons[d.getMonth()]} ${d.getDate()}`;
   })() : null;
 
-  const windowLabels   = { today: 'Performing today:', weekend: 'Performing this weekend:', week: 'Performing this week:', month: 'Performing this month:' };
-  const windowNoPerf   = { today: 'Today', weekend: 'This Weekend', week: 'This Week', month: 'This Month' };
+  const windowLabels   = { today: 'Performing today:', tomorrow: 'Performing tomorrow:', weekend: 'Performing this weekend:', week: 'Performing this week:', month: 'Performing this month:' };
+  const windowNoPerf   = { today: 'Today', tomorrow: 'Tomorrow', weekend: 'This Weekend', week: 'This Week', month: 'This Month' };
   const windowLabel    = window ? (performerLines.length ? (windowLabels[window] ?? `Performing ${window}:`) : (windowNoPerf[window] ?? window)) : null;
 
   return [
