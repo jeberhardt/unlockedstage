@@ -29,6 +29,13 @@ export default {
       description: 'Link to the parent festival or named event, if applicable.',
     },
     {
+      name: 'series',
+      title: 'Series',
+      type: 'reference',
+      to: [{ type: 'series' }],
+      description: 'Link to the parent series, if applicable. Use either Festival or Series — not both.',
+    },
+    {
       name: 'genre',
       title: 'Genre',
       type: 'string',
