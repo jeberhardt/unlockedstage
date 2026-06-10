@@ -193,11 +193,19 @@ export function buildNextMonthCaption(events) {
   return buildListingCaption(`🗓 Free concerts coming up in ${month}:`, events);
 }
 
-export function buildWeekendCaption(events, handles = {}) {
-  const lines       = events.map(e => `🎵 ${e.title || e.artist}`);
-  const handleList  = Object.values(handles);
+export function buildWeekendCaption(events, handles = {}, window = 'weekend') {
+  const headers = {
+    today:    '🗓 Free events in Toronto today:',
+    tomorrow: '🗓 Free events in Toronto tomorrow:',
+    weekend:  '🗓 Free concerts this weekend in Toronto:',
+    week:     '🗓 Free events in Toronto this week:',
+    month:    '🗓 Free events in Toronto this month:',
+  };
+  const header     = headers[window] ?? '🗓 Free events in Toronto:';
+  const lines      = events.map(e => `🎵 ${e.title || e.artist}`);
+  const handleList = Object.values(handles);
   return [
-    '🗓 Free concerts this weekend in Toronto:',
+    header,
     '',
     ...lines,
     '',

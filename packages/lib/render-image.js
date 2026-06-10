@@ -379,7 +379,7 @@ export function renderEventImage(event, format = 'square', performers = [], wind
  * @param {string} dateLabel     - formatted weekend date range, e.g. "JUN 6 – 8"
  * @returns {Buffer} PNG buffer
  */
-export function renderWeekendImage(events, format = 'square', page = 1, totalPages = 1, maxPerPage = null, dateLabel = '') {
+export function renderWeekendImage(events, format = 'square', page = 1, totalPages = 1, maxPerPage = null, dateLabel = '', window = 'weekend') {
   const W = 1080;
   const H = format === 'story' ? 1350 : 1080;
   const canvas = createCanvas(W, H);
@@ -439,8 +439,9 @@ export function renderWeekendImage(events, format = 'square', page = 1, totalPag
   ctx.textAlign     = 'left';
   ctx.restore();
 
-  // Hero: "THIS WEEKEND"
-  const heroText     = 'THIS WEEKEND';
+  // Hero title based on window
+  const heroLabels = { today: 'TODAY', tomorrow: 'TOMORROW', weekend: 'THIS WEEKEND', week: 'THIS WEEK', month: 'THIS MONTH' };
+  const heroText     = heroLabels[window] ?? 'THIS WEEKEND';
   const heroFontSize = Math.round(W * 0.108);
   ctx.font           = `bold ${heroFontSize}px Inter`;
   const heroY        = H * 0.28;
@@ -466,7 +467,7 @@ export function renderWeekendImage(events, format = 'square', page = 1, totalPag
 
   ctx.font = `500 ${listFontSize}px Inter`;
 
-  const rowMargin  = pad * 0.6;
+  const rowMargin  = pad;
   const rowPad     = pad * 0.25;
   const maxTextWidth = W - rowMargin * 2 - rowPad * 2;
 
