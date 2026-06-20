@@ -27,10 +27,13 @@ import { postToFacebook, postTextToFacebook }          from './social/facebook.j
 // ---------------------------------------------------------------------------
 const DRY_RUN   = process.argv.includes('--dry-run');
 const NO_IMAGE  = process.argv.includes('--no-image');
-const FORMAT    = process.argv.includes('--format') && process.argv[process.argv.indexOf('--format') + 1] === 'story'
-  ? 'story' : 'square';
+const FORMAT    = process.argv.includes('--format') && process.argv[process.argv.indexOf('--format') + 1] === 'square'
+  ? 'square' : 'story';
 const SINGLE_ID = process.argv.includes('--id')
   ? process.argv[process.argv.indexOf('--id') + 1]
+  : null;
+const WINDOW    = process.argv.includes('--window')
+  ? process.argv[process.argv.indexOf('--window') + 1]
   : null;
 
 // ---------------------------------------------------------------------------
@@ -49,7 +52,7 @@ async function makeImagePublicUrl(buffer, eventId) {
 async function processEvent(event) {
   console.log(`\n🎶 ${event.artist} @ ${event.venue}`);
 
-  const buffer  = NO_IMAGE ? null : renderEventImage(event, FORMAT);
+  const buffer  = NO_IMAGE ? null : renderEventImage(event, FORMAT, [], WINDOW);
   const caption = buildIndividualCaption(event);
 
   console.log('  Caption preview:\n' + caption.split('\n').map(l => `    ${l}`).join('\n'));
@@ -106,7 +109,7 @@ async function main() {
   let event;
 
   if (SINGLE_ID) {
-    event = await sanity.fetch(`*[_type == "event" && _id == $id][0]`, { id: SINGLE_ID });
+    event = await sanity.fetch(`*[_id == $id][0]`, { id: SINGLE_ID });
     if (!event) { console.error(`Event ${SINGLE_ID} not found.`); process.exit(1); }
   } else {
     event = await fetchNextUnpostedEvent();

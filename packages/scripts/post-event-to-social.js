@@ -20,11 +20,11 @@ import { writeFileSync }                                  from 'node:fs';
 import { tmpdir }                                         from 'node:os';
 import { join }                                           from 'node:path';
 import { fetchNextUnpostedNamedEvent, markEventAsPosted, sanity } from '../lib/sanity.js';
-import { renderEventImage }                               from '../lib/render-image.js';
+import { renderEventImage, renderFestivalDayImage }       from '../lib/render-image.js';
 import { buildFestivalCaption }                           from '../lib/captions.js';
 import { postImageToDiscord }                             from '../lib/discord.js';
-import { postToInstagram }                                from './social/instagram.js';
-import { postToFacebook }                                 from './social/facebook.js';
+import { postToInstagram, postCarouselToInstagram }       from './social/instagram.js';
+import { postToFacebook, postAlbumToFacebook }            from './social/facebook.js';
 
 const DRY_RUN   = process.argv.includes('--dry-run');
 const FORMAT    = process.argv.includes('--format') && process.argv[process.argv.indexOf('--format') + 1] === 'square'
@@ -89,18 +89,36 @@ function getWindowBounds(window) {
   return null; // no window — caller uses full schedule range
 }
 
-// Fetch individual performer events that belong to this named event's schedule window.
-async function fetchPerformers(event) {
-  if (!event.schedule?.length) return [];
+// Fetch performances linked to this festival or series within the window.
+async function fetchPerformers(event, windowBounds = null) {
+  if (!['festival', 'series'].includes(event._type)) return [];
 
-  const windowBounds = WINDOW ? getWindowBounds(WINDOW) : null;
-  const start = windowBounds?.start ?? event.schedule[0].startTime;
-  const end   = windowBounds?.end   ?? event.schedule[event.schedule.length - 1].endTime;
+  const refField     = event._type === 'festival' ? 'festival' : 'series';
+  const schedStart   = event.schedule?.[0]?.startTime ?? event.dateTime;
+  const schedEnd     = event.schedule?.[event.schedule.length - 1]?.endTime ?? event.dateTime;
+  const start        = windowBounds?.start ?? schedStart;
+  const end          = windowBounds?.end   ?? schedEnd;
 
-  return sanity.fetch(`
-    *[_type == "event" && venue == $venue && !(title != null) && dateTime >= $start && dateTime <= $end]
-    | order(dateTime asc) { artist, dateTime }
-  `, { venue: event.venue, start, end });
+  return sanity.fetch(
+    `*[_type == "performance" && ${refField}._ref == $id && dateTime >= $start && dateTime <= $end]
+     | order(dateTime asc) { artist, dateTime, venue }`,
+    { id: event._id, start, end }
+  );
+}
+
+// Group performers by Toronto calendar date, excluding past days.
+// Returns Map<'YYYY-MM-DD', performer[]>.
+function groupByDay(performers) {
+  const TZ    = 'America/Toronto';
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: TZ });
+  const groups = new Map();
+  for (const p of performers) {
+    const day = new Date(p.dateTime).toLocaleDateString('en-CA', { timeZone: TZ });
+    if (day < today) continue; // skip past days
+    if (!groups.has(day)) groups.set(day, []);
+    groups.get(day).push(p);
+  }
+  return groups;
 }
 
 async function makeImagePublicUrl(buffer, eventId) {
@@ -112,38 +130,76 @@ async function makeImagePublicUrl(buffer, eventId) {
 async function processEvent(event) {
   console.log(`\n🎪 ${event.title} @ ${event.venue}`);
 
-  const performers = await fetchPerformers(event);
-  if (performers.length) console.log(`  ${performers.length} performer(s): ${performers.map(p => p.artist).join(', ')}`);
+  const windowBounds = WINDOW ? getWindowBounds(WINDOW) : null;
+  const performers   = await fetchPerformers(event, windowBounds);
+  console.log(`  ${performers.length} performer(s) in window`);
 
-  const buffer  = renderEventImage(event, FORMAT, performers, WINDOW);
-  const caption = buildFestivalCaption(event, performers, WINDOW);
+  const byDay     = groupByDay(performers);
+  const isMultiDay = byDay.size > 1;
+  const caption    = buildFestivalCaption(event, [], WINDOW);
 
   console.log('  Caption preview:\n' + caption.split('\n').map(l => `    ${l}`).join('\n'));
 
-  if (DRY_RUN) {
-    const outPath = join(tmpdir(), `${event._id}-event-preview.png`);
-    writeFileSync(outPath, buffer);
-    console.log(`  [DRY RUN] Image written to ${outPath}`);
-    await postImageToDiscord(buffer, `${event._id}-event-preview.png`, caption);
-    console.log(`  [DRY RUN] Image sent to Discord.`);
-    return;
+  if (isMultiDay) {
+    // Carousel — one slide per day
+    const days    = Array.from(byDay.entries()); // [['2026-06-20', [...]], ...]
+    const buffers = days.map(([, dayPerformers]) =>
+      renderFestivalDayImage(event, dayPerformers, FORMAT, WINDOW)
+    );
+    console.log(`  Building ${days.length}-slide carousel (one per day)…`);
+    days.forEach(([date, dp]) => console.log(`    · ${date}: ${dp.length} performer(s)`));
+
+    if (DRY_RUN) {
+      for (const [i, buffer] of buffers.entries()) {
+        const [date] = days[i];
+        const outPath = join(tmpdir(), `${event._id}-day${i + 1}-preview.png`);
+        writeFileSync(outPath, buffer);
+        console.log(`  [DRY RUN] Slide ${i + 1} written to ${outPath}`);
+        await postImageToDiscord(buffer, `${event._id}-day${i + 1}.png`, i === 0 ? caption : `(slide ${i + 1}: ${date})`);
+      }
+      console.log(`  [DRY RUN] All slides sent to Discord.`);
+      return;
+    }
+
+    const imageUrls = await Promise.all(buffers.map((buf, i) => makeImagePublicUrl(buf, `${event._id}-${i + 1}`)));
+    const results   = await Promise.allSettled([
+      postCarouselToInstagram(imageUrls, caption),
+      postAlbumToFacebook(imageUrls, caption),
+    ]);
+    results.forEach((r, i) => {
+      if (r.status === 'rejected') console.error(`  ✗ ${i === 0 ? 'Instagram' : 'Facebook'} failed: ${r.reason.message}`);
+      else console.log(`  ✓ ${i === 0 ? 'Instagram' : 'Facebook'}`);
+    });
+
+  } else {
+    // Single image — use day template if we have performers, otherwise standard event image
+    const dayPerformers = byDay.size === 1 ? Array.from(byDay.values())[0] : [];
+    const buffer = dayPerformers.length > 0
+      ? renderFestivalDayImage(event, dayPerformers, FORMAT, WINDOW)
+      : renderEventImage(event, FORMAT, [], WINDOW);
+
+    if (DRY_RUN) {
+      const outPath = join(tmpdir(), `${event._id}-event-preview.png`);
+      writeFileSync(outPath, buffer);
+      console.log(`  [DRY RUN] Image written to ${outPath}`);
+      await postImageToDiscord(buffer, `${event._id}-event-preview.png`, caption);
+      console.log(`  [DRY RUN] Image sent to Discord.`);
+      return;
+    }
+
+    const imageUrl = await makeImagePublicUrl(buffer, event._id);
+    const results  = await Promise.allSettled([
+      postToInstagram(imageUrl, caption),
+      postToFacebook(imageUrl, caption),
+    ]);
+    results.forEach((r, i) => {
+      if (r.status === 'rejected') console.error(`  ✗ ${i === 0 ? 'Instagram' : 'Facebook'} failed: ${r.reason.message}`);
+      else console.log(`  ✓ ${i === 0 ? 'Instagram' : 'Facebook'}`);
+    });
   }
 
-  const imageUrl = await makeImagePublicUrl(buffer, event._id);
-
-  const results = await Promise.allSettled([
-    postToInstagram(imageUrl, caption),
-    postToFacebook(imageUrl, caption),
-  ]);
-
-  results.forEach((r, i) => {
-    if (r.status === 'rejected') {
-      console.error(`  ✗ ${i === 0 ? 'Instagram' : 'Facebook'} failed: ${r.reason.message}`);
-    }
-  });
-
-  const anySucceeded = results.some(r => r.status === 'fulfilled');
-  if (anySucceeded) {
+  const anySucceeded = true; // mark regardless — we've already posted what we can
+  if (anySucceeded && !DRY_RUN) {
     await markEventAsPosted(event.title);
     console.log(`  ✓ Marked all "${event.title}" events as posted in Sanity.`);
   }
@@ -155,8 +211,8 @@ async function main() {
   let event;
 
   if (SINGLE_ID) {
-    event = await sanity.fetch(`*[_type == "event" && _id == $id][0] {
-      _id, title, artist, genre, dateTime, venue, neighbourhood, externalLink, notes, instagramHandle, facebookHandle, schedule
+    event = await sanity.fetch(`*[_id == $id][0] {
+      _id, _type, title, artist, genre, dateTime, venue, neighbourhood, externalLink, notes, instagramHandle, facebookHandle, schedule
     }`, { id: SINGLE_ID });
     if (!event) { console.error(`Event ${SINGLE_ID} not found.`); process.exit(1); }
     if (!event.title) { console.error(`Event ${SINGLE_ID} has no title — use post-to-social.js for performances.`); process.exit(1); }
