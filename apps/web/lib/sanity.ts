@@ -30,3 +30,16 @@ export const eventsQuery = `*[_type == "performance" && dateTime >= $startOfToda
   notes,
   "image": coalesce(image, festival->image, series->image)
 }`;
+
+export const namedEventsQuery = `*[_type in ["festival","series"] && !(_id in path("drafts.**"))] | order(dateTime asc) {
+  _id, _type, title, venue, neighbourhood, dateTime, schedule, externalLink, genre, notes
+}`;
+
+export const eventDetailQuery = `{
+  "event": *[_id == $id && !(_id in path("drafts.**"))][0] {
+    _id, _type, title, venue, neighbourhood, dateTime, schedule, externalLink, genre, notes, instagramHandle, facebookHandle
+  },
+  "performances": *[_type == "performance" && (festival._ref == $id || series._ref == $id) && !(_id in path("drafts.**"))] | order(dateTime asc) {
+    _id, artist, dateTime, venue
+  }
+}`;

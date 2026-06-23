@@ -159,8 +159,8 @@ export default function EventsClient({ events }: { events: Event[] }) {
       </div>
 
       {/* Events section */}
-      <section className="px-[clamp(1.5rem,5vw,4rem)] py-[clamp(2rem,4vw,3rem)] flex-1">
-        <div className="flex items-baseline justify-between mb-7">
+      <section className="px-[clamp(1.5rem,5vw,4rem)] pt-[clamp(1rem,2vw,1.5rem)] pb-[clamp(2rem,4vw,3rem)] flex-1">
+        <div className="flex items-baseline justify-between mb-4">
           <h2 className="font-sans font-bold text-[1.5rem] tracking-[-0.01em]">
             {timeFilter === 'all' ? 'Upcoming Events' : TIME_LABELS[timeFilter]}
           </h2>
