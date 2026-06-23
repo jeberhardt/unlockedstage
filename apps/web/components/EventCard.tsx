@@ -3,15 +3,15 @@ import { urlFor } from '@/lib/sanity';
 import type { Event } from '@/types/event';
 
 const GENRE_COLORS: Record<string, string> = {
-  jazz: '#2a6b4a',
-  folk: '#7a5c2a',
-  indie: '#3a4f7a',
-  classical: '#5a2a6b',
-  electronic: '#1a5f6b',
-  rb: '#8a2a3a',
-  pop: '#6b4a2a',
-  hiphop: '#2a4a6b',
-  other: '#555555',
+  jazz: '#10b981',
+  folk: '#f59e0b',
+  indie: '#818cf8',
+  classical: '#a855f7',
+  electronic: '#06b6d4',
+  rb: '#ec4899',
+  pop: '#f97316',
+  hiphop: '#3b82f6',
+  other: '#FF2D2D',
 };
 
 function formatDate(iso: string) {
@@ -25,7 +25,7 @@ function formatDate(iso: string) {
 }
 
 const cardClassName =
-  'group bg-card-bg p-[1.6rem] flex flex-col gap-[0.85rem] no-underline text-ink transition-colors duration-200 hover:bg-white relative overflow-hidden animate-fade-up';
+  'group bg-card-bg p-[1.6rem] flex flex-col gap-[0.85rem] no-underline text-ink transition-colors duration-200 hover:bg-[#162030] relative overflow-hidden animate-fade-up';
 
 function CardInner({ event }: { event: Event }) {
   const { month, day, weekday, time } = formatDate(event.dateTime);
@@ -38,12 +38,12 @@ function CardInner({ event }: { event: Event }) {
     <>
       {/* Date block + genre badge */}
       <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col items-center justify-center bg-ink text-paper w-14 h-[62px] flex-shrink-0 rounded-[3px] py-[0.3rem]">
-          <span className="font-mono text-[0.55rem] tracking-[0.1em] uppercase opacity-65 leading-none">
+        <div className="flex flex-col items-center justify-center bg-accent text-white w-14 h-[62px] flex-shrink-0 rounded-[3px] py-[0.3rem]">
+          <span className="font-mono text-[0.55rem] tracking-[0.1em] uppercase opacity-80 leading-none">
             {month}
           </span>
-          <span className="font-display text-[1.4rem] font-bold leading-[1.1]">{day}</span>
-          <span className="font-mono text-[0.52rem] tracking-[0.08em] uppercase opacity-55 leading-none">
+          <span className="font-sans font-bold text-[1.4rem] leading-[1.1]">{day}</span>
+          <span className="font-mono text-[0.52rem] tracking-[0.08em] uppercase opacity-70 leading-none">
             {weekday}
           </span>
         </div>
@@ -55,9 +55,9 @@ function CardInner({ event }: { event: Event }) {
         </span>
       </div>
 
-      {/* Artist */}
-      <div className="font-display text-[1.15rem] font-bold leading-[1.2] tracking-[-0.01em]">
-        {event.artist}
+      {/* Artist / title */}
+      <div className="font-sans font-bold text-[1.15rem] leading-[1.2] tracking-[-0.01em]">
+        {event.title || event.artist}
       </div>
 
       {/* Venue */}

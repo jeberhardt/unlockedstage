@@ -14,7 +14,12 @@ export function urlFor(source: { asset: { _ref: string } }) {
   return builder.image(source);
 }
 
-export const eventsQuery = `*[_type == "performance" && dateTime >= now()] | order(dateTime asc) {
+// GROQ compares datetime strings lexicographically, which breaks for values
+// stored with a UTC offset (e.g. "T17:45:00-04:00" sorts before "T20:00:00Z"
+// even though it's later in absolute time). We use today's UTC midnight as a
+// rough lower bound (always safe for string comparison), then filter precisely
+// in JS on the server in page.tsx using Date objects, which handle offsets correctly.
+export const eventsQuery = `*[_type == "performance" && dateTime >= $startOfToday] | order(dateTime asc) {
   _id,
   artist,
   genre,

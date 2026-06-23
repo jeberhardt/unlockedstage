@@ -61,7 +61,7 @@ export default function EventsClient({ events }: { events: Event[] }) {
       {/* Events section */}
       <section className="px-[clamp(1.5rem,5vw,4rem)] py-[clamp(2rem,4vw,3rem)] flex-1">
         <div className="flex items-baseline justify-between mb-7">
-          <h2 className="font-display text-[1.5rem] font-normal tracking-[-0.01em]">
+          <h2 className="font-sans font-bold text-[1.5rem] tracking-[-0.01em]">
             Upcoming Events
           </h2>
           <span className="font-mono text-[0.7rem] text-muted tracking-[0.06em]">

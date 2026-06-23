@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Dark theme baseline — ensures the navy background is always applied */
+html, body {
+  background-color: #0A1628;
+  color: #FFFFFF;
+}
+
 /* Grain/noise texture overlay */
 body::before {
   content: '';
@@ -9,7 +15,7 @@ body::before {
   inset: 0;
   pointer-events: none;
   z-index: 999;
-  opacity: 0.025;
+  opacity: 0.04;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
   background-size: 200px 200px;
 }
@@ -20,11 +26,11 @@ body::before {
   position: absolute;
   right: -0.04em;
   bottom: -0.1em;
-  font-family: var(--font-playfair), Georgia, serif;
+  font-family: var(--font-dm-sans), sans-serif;
   font-size: clamp(6rem, 18vw, 16rem);
   font-weight: 700;
   color: transparent;
-  -webkit-text-stroke: 1px #ccc8c0;
+  -webkit-text-stroke: 1px rgba(255, 45, 45, 0.15);
   pointer-events: none;
   line-height: 1;
   letter-spacing: -0.04em;
