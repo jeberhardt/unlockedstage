@@ -1,5 +1,6 @@
 export interface Event {
   _id: string;
+  title?: string;
   artist: string;
   genre: string;
   dateTime: string;
