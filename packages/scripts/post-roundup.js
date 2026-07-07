@@ -22,7 +22,8 @@ import { join }                    from 'node:path';
 import Anthropic                   from '@anthropic-ai/sdk';
 import { sanity }                  from '../lib/sanity.js';
 import { renderWeekendImage,
-         renderEventImage }        from '../lib/render-image.js';
+         renderEventImage,
+         renderFestivalDayImage }  from '../lib/render-image.js';
 import { buildWeekendCaption,
          buildFestivalCaption,
          buildIndividualCaption }  from '../lib/captions.js';
@@ -34,11 +35,18 @@ import { postToFacebook,
 import { ANTHROPIC_API_KEY }       from '../lib/config.js';
 
 const DRY_RUN      = process.argv.includes('--dry-run');
-const FORMAT       = process.argv.includes('--format') && process.argv[process.argv.indexOf('--format') + 1] === 'story'
-  ? 'story' : 'square';
+const FORMAT       = process.argv.includes('--format')
+  ? (['story', 'portrait'].includes(process.argv[process.argv.indexOf('--format') + 1]) ? 'story' : 'square')
+  : 'square';
 const WINDOW       = process.argv.includes('--window')
   ? process.argv[process.argv.indexOf('--window') + 1]
   : 'weekend';
+const EXCLUDE      = process.argv.includes('--exclude')
+  ? process.argv[process.argv.indexOf('--exclude') + 1].split(',').map(s => s.trim().toLowerCase())
+  : [];
+const ONLY_FESTIVAL = process.argv.includes('--festival')
+  ? process.argv[process.argv.indexOf('--festival') + 1].trim().toLowerCase()
+  : null;
 const MAX_PER_PAGE = 8;
 
 // ---------------------------------------------------------------------------
@@ -235,7 +243,10 @@ async function main() {
   console.log(`  Window: ${bounds.start} → ${bounds.end}`);
 
   const raw    = await fetchWindowEvents(bounds);
-  const events = raw.map(e => ({ ...e, title: stripYear(e.title) }));
+  const events = raw
+    .map(e => ({ ...e, title: stripYear(e.title) }))
+    .filter(e => !EXCLUDE.some(ex => e.title.toLowerCase().includes(ex)))
+    .filter(e => !ONLY_FESTIVAL || e.title.toLowerCase().includes(ONLY_FESTIVAL));
 
   if (events.length === 0) {
     console.log('No events found for this window.\n');
@@ -254,28 +265,54 @@ async function main() {
   const foundCount = Object.keys(handles).length;
   console.log(`  Found ${foundCount} handle(s)${foundCount ? ': ' + Object.values(handles).join(', ') : ''}`);
 
-  // ── Slide 1: overview ────────────────────────────────────────────────────
-  const overviewBuf = renderWeekendImage(ranked, FORMAT, 1, 1, MAX_PER_PAGE, dateLabel, WINDOW);
-  const caption     = buildWeekendCaption(ranked, handles, WINDOW);
+  // ── Single-festival mode: one slide per day ──────────────────────────────
+  const singleFestival = ranked.length === 1 && ranked[0]._source === 'festival';
 
-  // ── Slides 2+: one detail image per event ────────────────────────────────
-  console.log('\nBuilding detail slides…');
-  const detailBufs = [];
-  for (const event of ranked) {
-    if (event._source === 'standalone') {
-      detailBufs.push(renderEventImage(event, FORMAT));
-      console.log(`  · standalone: ${event.title}`);
-    } else {
-      const performers = await fetchPerformers(event._id, event._source, bounds);
-      detailBufs.push(renderEventImage(event, FORMAT, performers, WINDOW));
-      console.log(`  · ${event._source}: ${event.title} (${performers.length} performers)`);
+  let allBufs;
+  let caption;
+
+  if (singleFestival) {
+    const festival   = ranked[0];
+    const performers = await fetchPerformers(festival._id, 'festival', bounds);
+    caption          = buildFestivalCaption(festival, performers, WINDOW);
+
+    // Group performers by calendar day
+    const byDay = new Map();
+    for (const p of performers) {
+      const key = new Date(p.dateTime).toDateString();
+      if (!byDay.has(key)) byDay.set(key, []);
+      byDay.get(key).push(p);
     }
+
+    console.log(`\nBuilding per-day slides (${byDay.size} day(s))…`);
+    allBufs = [];
+    for (const [day, dayPerfs] of byDay) {
+      allBufs.push(renderFestivalDayImage(festival, dayPerfs, FORMAT, WINDOW));
+      console.log(`  · ${day}: ${dayPerfs.length} performer(s)`);
+    }
+  } else {
+    // ── Overview + one detail per event ──────────────────────────────────
+    const overviewBuf = renderWeekendImage(ranked, FORMAT, 1, 1, MAX_PER_PAGE, dateLabel, WINDOW);
+    caption           = buildWeekendCaption(ranked, handles, WINDOW);
+
+    console.log('\nBuilding detail slides…');
+    const detailBufs = [];
+    for (const event of ranked) {
+      if (event._source === 'standalone') {
+        detailBufs.push(renderEventImage(event, FORMAT));
+        console.log(`  · standalone: ${event.title}`);
+      } else {
+        const performers = await fetchPerformers(event._id, event._source, bounds);
+        detailBufs.push(renderEventImage(event, FORMAT, performers, WINDOW));
+        console.log(`  · ${event._source}: ${event.title} (${performers.length} performers)`);
+      }
+    }
+    allBufs = [overviewBuf, ...detailBufs];
   }
 
-  const allBufs    = [overviewBuf, ...detailBufs];
   const totalSlides = allBufs.length;
 
-  console.log(`\n${totalSlides} slides total (1 overview + ${detailBufs.length} detail).`);
+  console.log(`\n${totalSlides} slide(s) total.`);
   console.log('\nCaption preview:\n' + caption.split('\n').map(l => `  ${l}`).join('\n'));
 
   if (DRY_RUN) {
@@ -303,7 +340,7 @@ async function main() {
     else console.log(`  ✓ ${i === 0 ? 'Instagram' : 'Facebook'}`);
   });
 
-  await postImageToDiscord(overviewBuf, `roundup-${WINDOW}.png`, caption);
+  await postImageToDiscord(allBufs[0], `roundup-${WINDOW}.png`, caption);
   console.log('  ✓ Discord');
   console.log('\n✅ Done.\n');
 }

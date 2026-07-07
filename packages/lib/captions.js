@@ -202,14 +202,17 @@ export function buildWeekendCaption(events, handles = {}, window = 'weekend') {
     month:    '🗓 Free events in Toronto this month:',
   };
   const header     = headers[window] ?? '🗓 Free events in Toronto:';
-  const lines      = events.map(e => `🎵 ${e.title || e.artist}`);
+  const lines      = events.map(e => {
+    const name = `🎵 ${e.title || e.artist}`;
+    return e.externalLink ? `${name}\n   ${e.externalLink}` : name;
+  });
   const handleList = Object.values(handles);
   return [
     header,
     '',
     ...lines,
     '',
-    'Check our other posts or visit unlockedstage.ca for details on each event and individual performances.',
+    'All events are free. Tap the links above for details.',
     '',
     ...(handleList.length ? [handleList.join(' '), ''] : []),
     '#Toronto #UnlockedStage #LiveMusic #FreeConcerts',
