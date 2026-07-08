@@ -13,7 +13,8 @@
 //   node scripts/post-roundup.js --window week
 //   node scripts/post-roundup.js --window month
 //   node scripts/post-roundup.js --dry-run
-//   node scripts/post-roundup.js --format story
+//
+// Always renders in the portrait ("story") layout.
 // ---------------------------------------------------------------------------
 
 import { writeFileSync }           from 'node:fs';
@@ -35,9 +36,7 @@ import { postToFacebook,
 import { ANTHROPIC_API_KEY }       from '../lib/config.js';
 
 const DRY_RUN      = process.argv.includes('--dry-run');
-const FORMAT       = process.argv.includes('--format')
-  ? (['story', 'portrait'].includes(process.argv[process.argv.indexOf('--format') + 1]) ? 'story' : 'square')
-  : 'square';
+const FORMAT       = 'story'; // portrait layout — always
 const WINDOW       = process.argv.includes('--window')
   ? process.argv[process.argv.indexOf('--window') + 1]
   : 'weekend';
@@ -99,15 +98,21 @@ function getWindowBounds(window) {
 
 function formatWindowLabel(window, { start, end }) {
   const TZ     = 'America/Toronto';
+  const days   = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
   const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
   const monthDay = iso => {
-    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, month: '2-digit', day: 'numeric' })
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, weekday: 'short', month: '2-digit', day: 'numeric' })
       .formatToParts(new Date(iso));
-    return { month: +parts.find(p => p.type === 'month').value, day: +parts.find(p => p.type === 'day').value };
+    return {
+      weekday: parts.find(p => p.type === 'weekday').value,
+      month: +parts.find(p => p.type === 'month').value,
+      day: +parts.find(p => p.type === 'day').value,
+    };
   };
   if (window === 'today' || window === 'tomorrow') {
-    const { month, day } = monthDay(start);
-    return `${months[month - 1]} ${day}`;
+    const { weekday, month, day } = monthDay(start);
+    const dayNum = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }[weekday];
+    return `${days[dayNum]} ${months[month - 1]} ${day}`;
   }
   const s = monthDay(start);
   const e = monthDay(end);

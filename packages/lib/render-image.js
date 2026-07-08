@@ -62,11 +62,18 @@ function formatTimeRange(startStr, endStr) {
 }
 
 function formatScheduleEntry(entry) {
-  const d    = new Date(entry.startTime);
   const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
   const mons = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-  const day  = `${days[d.getDay()]} ${d.getDate()} ${mons[d.getMonth()]}`;
-  return `${day} · ${formatTimeRange(entry.startTime, entry.endTime)}`;
+  const s = new Date(entry.startTime);
+  const e = new Date(entry.endTime);
+  if (s.toDateString() === e.toDateString()) {
+    const day = `${days[s.getDay()]} ${s.getDate()} ${mons[s.getMonth()]}`;
+    return `${day} · ${formatTimeRange(entry.startTime, entry.endTime)}`;
+  }
+  // Multi-day run (e.g. a month-long festival) — show a date range, not a bogus time-of-day.
+  const startLabel = `${mons[s.getMonth()]} ${s.getDate()}`;
+  const endLabel    = s.getMonth() === e.getMonth() ? `${e.getDate()}` : `${mons[e.getMonth()]} ${e.getDate()}`;
+  return `${startLabel} – ${endLabel}`;
 }
 
 function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
