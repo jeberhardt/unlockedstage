@@ -21,6 +21,29 @@ const PALETTES = {
   accent: '#FF2D2D',
 };
 
+const TZ = 'America/Toronto';
+
+// Extracts Toronto-local date/time components from an ISO string, regardless
+// of the host machine's system time zone (GitHub Actions runners run in UTC).
+function tzParts(dtStr) {
+  const d     = new Date(dtStr);
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ, year: 'numeric', weekday: 'short', month: 'short', day: 'numeric',
+    hour: 'numeric', minute: '2-digit', hour12: true,
+  }).formatToParts(d);
+  const get = t => parts.find(p => p.type === t)?.value ?? '';
+  return {
+    weekday:   get('weekday'),   // "Sun"
+    month:     get('month'),     // "Jul"
+    day:       +get('day'),      // 9
+    year:      get('year'),
+    hour:      get('hour'),      // "8" (no leading zero)
+    minute:    get('minute'),    // "00"
+    dayPeriod: get('dayPeriod').toUpperCase(), // "AM" | "PM"
+    dateKey:   `${get('year')}-${get('month')}-${get('day')}`,
+  };
+}
+
 
 const GENRE_LABELS = {
   jazz: 'Jazz', indie: 'Indie', classical: 'Classical', folk: 'Folk',
@@ -28,32 +51,20 @@ const GENRE_LABELS = {
 };
 
 function formatDate(dtStr) {
-  const d    = new Date(dtStr);
-  const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
-  const mons = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-  let h = d.getHours(), ap = h >= 12 ? 'PM' : 'AM';
-  h = h % 12 || 12;
-  const m = d.getMinutes().toString().padStart(2, '0');
-  return `${days[d.getDay()]} ${d.getDate()} ${mons[d.getMonth()]} · ${h}:${m} ${ap}`;
+  const p = tzParts(dtStr);
+  return `${p.weekday.toUpperCase()} ${p.day} ${p.month.toUpperCase()} · ${p.hour}:${p.minute} ${p.dayPeriod}`;
 }
 
 function formatTimeOnly(dtStr) {
-  const d  = new Date(dtStr);
-  let h    = d.getHours();
-  const ap = h >= 12 ? 'PM' : 'AM';
-  h = h % 12 || 12;
-  const m = d.getMinutes().toString().padStart(2, '0');
-  return `${h}:${m} ${ap}`;
+  const p = tzParts(dtStr);
+  return `${p.hour}:${p.minute} ${p.dayPeriod}`;
 }
 
 function formatTimeRange(startStr, endStr) {
   const fmt = (dtStr) => {
-    const d  = new Date(dtStr);
-    let h    = d.getHours();
-    const ap = h >= 12 ? 'PM' : 'AM';
-    h = h % 12 || 12;
-    const m = d.getMinutes();
-    return { h, m, ap, str: m === 0 ? `${h}` : `${h}:${String(m).padStart(2,'0')}` };
+    const p = tzParts(dtStr);
+    const m = +p.minute;
+    return { h: +p.hour, m, ap: p.dayPeriod, str: m === 0 ? `${p.hour}` : `${p.hour}:${p.minute}` };
   };
   const s = fmt(startStr);
   const e = fmt(endStr);
@@ -62,17 +73,15 @@ function formatTimeRange(startStr, endStr) {
 }
 
 function formatScheduleEntry(entry) {
-  const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
-  const mons = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-  const s = new Date(entry.startTime);
-  const e = new Date(entry.endTime);
-  if (s.toDateString() === e.toDateString()) {
-    const day = `${days[s.getDay()]} ${s.getDate()} ${mons[s.getMonth()]}`;
+  const s = tzParts(entry.startTime);
+  const e = tzParts(entry.endTime);
+  if (s.dateKey === e.dateKey) {
+    const day = `${s.weekday.toUpperCase()} ${s.day} ${s.month.toUpperCase()}`;
     return `${day} · ${formatTimeRange(entry.startTime, entry.endTime)}`;
   }
   // Multi-day run (e.g. a month-long festival) — show a date range, not a bogus time-of-day.
-  const startLabel = `${mons[s.getMonth()]} ${s.getDate()}`;
-  const endLabel    = s.getMonth() === e.getMonth() ? `${e.getDate()}` : `${mons[e.getMonth()]} ${e.getDate()}`;
+  const startLabel = `${s.month.toUpperCase()} ${s.day}`;
+  const endLabel    = s.month === e.month ? `${e.day}` : `${e.month.toUpperCase()} ${e.day}`;
   return `${startLabel} – ${endLabel}`;
 }
 
@@ -250,20 +259,17 @@ export function renderEventImage(event, format = 'square', performers = [], wind
     // Build a date→schedule entry map for end times
     const scheduleByDate = new Map();
     for (const s of (event.schedule ?? [])) {
-      scheduleByDate.set(new Date(s.startTime).toDateString(), s);
+      scheduleByDate.set(tzParts(s.startTime).dateKey, s);
     }
 
-    const allSameDay = performers.every(p =>
-      new Date(p.dateTime).toDateString() === new Date(performers[0].dateTime).toDateString()
-    );
+    const firstDateKey = tzParts(performers[0].dateTime).dateKey;
+    const allSameDay = performers.every(p => tzParts(p.dateTime).dateKey === firstDateKey);
 
     const venueFontSize = Math.round(W * 0.03);
 
     if (allSameDay) {
-      const d0   = new Date(performers[0].dateTime);
-      const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-      const mons = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      const dateLabel = `${days[d0.getDay()]} ${d0.getDate()} ${mons[d0.getMonth()]}`.toUpperCase();
+      const p0 = tzParts(performers[0].dateTime);
+      const dateLabel = `${p0.weekday} ${p0.day} ${p0.month}`.toUpperCase();
       const labelSize = Math.round(W * 0.038);
       ctx.font      = `600 ${labelSize}px Inter`;
       ctx.fillStyle = acc;
@@ -288,9 +294,6 @@ export function renderEventImage(event, format = 'square', performers = [], wind
       ctx.fillStyle = i % 2 === 0 ? 'rgba(255,45,45,0.13)' : 'rgba(255,255,255,0.06)';
       ctx.fillRect(rowMargin, rowTop, W - rowMargin * 2, rowH);
 
-      const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
-      const mons = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-      const d       = new Date(p.dateTime);
       const timeStr = formatTimeOnly(p.dateTime);
 
       if (allSameDay) {
@@ -314,7 +317,8 @@ export function renderEventImage(event, format = 'square', performers = [], wind
         ctx.fillText(artistName, pad + timeW, lineY);
       } else {
         // Two lines: date/time on top, artist below
-        const dayLabel = `${days[d.getDay()]} ${d.getDate()} ${mons[d.getMonth()]} · ${timeStr}`;
+        const pd       = tzParts(p.dateTime);
+        const dayLabel = `${pd.weekday.toUpperCase()} ${pd.day} ${pd.month.toUpperCase()} · ${timeStr}`;
         const line1Y   = rowTop + innerPad + dateFontSize;
         ctx.font      = `500 ${dateFontSize}px Inter`;
         ctx.fillStyle = acc;
