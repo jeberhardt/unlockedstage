@@ -101,6 +101,18 @@ export default {
       type: 'boolean',
       description: 'Set automatically when this event has been posted as a festival/named-event post.',
     },
+    {
+      name: 'cancelled',
+      title: 'Cancelled',
+      type: 'boolean',
+      description: 'Check this to flag the event as cancelled (e.g. bad weather). Run post-cancelled-events.js to alert followers.',
+    },
+    {
+      name: 'cancellationPosted',
+      title: 'Cancellation Posted',
+      type: 'boolean',
+      description: 'Set automatically once a cancellation alert has been posted for this event.',
+    },
   ],
   orderings: [
     {
@@ -111,9 +123,15 @@ export default {
   ],
   preview: {
     select: {
-      title: 'title',
-      subtitle: 'venue',
-      media: 'image',
+      title:     'title',
+      subtitle:  'venue',
+      media:     'image',
+      cancelled: 'cancelled',
     },
+    prepare: ({ title, subtitle, media, cancelled }) => ({
+      title: cancelled ? `❌ CANCELLED — ${title}` : title,
+      subtitle,
+      media,
+    }),
   },
 }

@@ -76,6 +76,18 @@ export default {
       type: 'boolean',
       description: 'Set automatically when this performance has been posted as an individual post.',
     },
+    {
+      name: 'cancelled',
+      title: 'Cancelled',
+      type: 'boolean',
+      description: 'Check this to flag the performance as cancelled (e.g. bad weather). Run post-cancelled-events.js to alert followers.',
+    },
+    {
+      name: 'cancellationPosted',
+      title: 'Cancellation Posted',
+      type: 'boolean',
+      description: 'Set automatically once a cancellation alert has been posted for this performance.',
+    },
   ],
   orderings: [
     {
@@ -86,13 +98,14 @@ export default {
   ],
   preview: {
     select: {
-      title:    'artist',
-      festival: 'festival.title',
-      venue:    'venue',
-      dateTime: 'dateTime',
+      title:     'artist',
+      festival:  'festival.title',
+      venue:     'venue',
+      dateTime:  'dateTime',
+      cancelled: 'cancelled',
     },
-    prepare: ({ title, festival, venue, dateTime }) => ({
-      title,
+    prepare: ({ title, festival, venue, dateTime, cancelled }) => ({
+      title: cancelled ? `❌ CANCELLED — ${title}` : title,
       subtitle: [festival, venue, dateTime?.slice(0, 10)].filter(Boolean).join(' · '),
     }),
   },

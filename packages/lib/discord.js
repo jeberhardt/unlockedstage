@@ -25,3 +25,19 @@ export async function postScrapeSummary(eventNames) {
     throw new Error(`Discord webhook: ${res.status} ${err}`);
   }
 }
+
+export async function postCancellationCheckSummary(findings) {
+  const content = findings.length === 0
+    ? '**Cancellation check** — no possible cancellations found.'
+    : `**Cancellation check** — ${findings.length} possible cancellation${findings.length === 1 ? '' : 's'} found\n` +
+      findings.map(f => `• [${f.confidence}] ${f.event.title || f.event.artist} @ ${f.event.venue}${f.evidence ? `\n   ${f.evidence}` : ''}`).join('\n');
+  const res = await fetch(DISCORD_WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Discord webhook: ${res.status} ${err}`);
+  }
+}
