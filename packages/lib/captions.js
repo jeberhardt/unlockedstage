@@ -193,6 +193,19 @@ export function buildNextMonthCaption(events) {
   return buildListingCaption(`🗓 Free concerts coming up in ${month}:`, events);
 }
 
+export function buildCancelledCaption(events, reason = 'poor weather') {
+  const lines = events.map(e => `❌ ${e.title || e.artist}\n   ${shortDate(e.dateTime)} · ${e.venue}, ${e.neighbourhood}`);
+  return [
+    `⚠️ Event${events.length > 1 ? 's' : ''} cancelled due to ${reason}`,
+    '',
+    ...lines,
+    '',
+    'Stay safe out there — check back for reschedule details.',
+    '',
+    '#Toronto #UnlockedStage #LiveMusic',
+  ].join('\n').trim();
+}
+
 export function buildWeekendCaption(events, handles = {}, window = 'weekend') {
   const headers = {
     today:    '🗓 Free events in Toronto today:',

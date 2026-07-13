@@ -250,8 +250,8 @@ export function renderEventImage(event, format = 'square', performers = [], wind
     let performerTop = listTop;
 
     // Performer rows — single line (time · artist) when all on same day, two lines otherwise
-    const dateFontSize   = performers.length <= 4 ? Math.round(W * 0.034) : Math.round(W * 0.028);
-    const artistFontSize = performers.length <= 4 ? Math.round(W * 0.042) : Math.round(W * 0.034);
+    const dateFontSize   = performers.length <= 4 ? Math.round(W * 0.034) : performers.length <= 8 ? Math.round(W * 0.028) : Math.round(W * 0.022);
+    const artistFontSize = performers.length <= 4 ? Math.round(W * 0.042) : performers.length <= 8 ? Math.round(W * 0.034) : Math.round(W * 0.027);
     const innerPad       = dateFontSize * 0.7;
     const rowMargin      = pad;
     const artistMaxW     = W - pad * 2;
@@ -288,7 +288,12 @@ export function renderEventImage(event, format = 'square', performers = [], wind
     const twoLineH    = innerPad + dateFontSize * 1.1 + artistFontSize * 1.2 + innerPad;
     const rowH        = allSameDay ? singleLineH : twoLineH;
 
-    performers.forEach((p, i) => {
+    // Cap rows so a long lineup never overflows the canvas
+    const availH  = H - performerTop - Math.round(pad * 0.8);
+    const maxRows = Math.max(1, Math.floor(availH / rowH));
+    const display = performers.slice(0, maxRows);
+
+    display.forEach((p, i) => {
       const rowTop = performerTop + i * rowH;
 
       ctx.fillStyle = i % 2 === 0 ? 'rgba(255,45,45,0.13)' : 'rgba(255,255,255,0.06)';
@@ -343,7 +348,13 @@ export function renderEventImage(event, format = 'square', performers = [], wind
       ctx.font      = `${venueFontSize}px Inter`;
       ctx.fillStyle = 'rgba(255,255,255,0.6)';
       const venueText = [event.venue, event.neighbourhood].filter(Boolean).join(', ');
-      wrapText(ctx, venueText, pad, performerTop + performers.length * rowH + W * 0.03, maxW, venueFontSize * 1.3);
+      wrapText(ctx, venueText, pad, performerTop + display.length * rowH + W * 0.03, maxW, venueFontSize * 1.3);
+    }
+
+    if (performers.length > display.length) {
+      ctx.font      = `500 ${dateFontSize}px Inter`;
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillText(`+ ${performers.length - display.length} more`, pad, performerTop + display.length * rowH + dateFontSize);
     }
   } else {
     // No performers — show schedule dates then venue
@@ -878,6 +889,164 @@ export function renderFestivalDayImage(event, performers = [], format = 'square'
       ctx.fillText(name, pad + timeW, rowCentY);
     });
     ctx.textBaseline = 'alphabetic';
+  }
+
+  // Watermark — bottom-right
+  ctx.font      = `${topSize}px Inter`;
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.textAlign = 'right';
+  ctx.fillText('unlockedstage.ca', W - pad, H - pad * 0.6);
+  ctx.textAlign = 'left';
+
+  return canvas.toBuffer('image/png');
+}
+
+/**
+ * Renders a cancellation alert for one or more events — e.g. an outdoor show
+ * called off for poor weather. No "FREE" ribbon; a large rotated stamp
+ * reading "CANCELLED" is the dominant visual element.
+ *
+ * @param {object[]} events   - Sanity event/performance documents being cancelled
+ * @param {'square'|'story'} format
+ * @param {string} reason     - short cause shown under the stamp, e.g. "Due to poor weather"
+ * @returns {Buffer} PNG buffer
+ */
+export function renderCancelledImage(events, format = 'story', reason = 'Due to poor weather') {
+  const W = 1080;
+  const H = format === 'story' ? 1350 : 1080;
+  const canvas = createCanvas(W, H);
+  const ctx    = canvas.getContext('2d');
+  const acc    = PALETTES.accent;
+  const pad    = W * 0.09;
+
+  // Background
+  ctx.fillStyle = PALETTES.bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Decorative concentric circles (top-right)
+  ctx.save();
+  ctx.globalAlpha = 0.07;
+  for (let i = 0; i < 8; i++) {
+    ctx.beginPath();
+    ctx.arc(W * 0.85, H * 0.15, 80 + i * 80, 0, Math.PI * 2);
+    ctx.strokeStyle = acc;
+    ctx.lineWidth   = 1.5;
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Decorative circle (bottom-left)
+  ctx.save();
+  ctx.globalAlpha = 0.1;
+  ctx.beginPath();
+  ctx.arc(W * 0.1, H * 0.85, 320, 0, Math.PI * 2);
+  ctx.strokeStyle = acc;
+  ctx.lineWidth   = 1;
+  ctx.stroke();
+  ctx.restore();
+
+  // "TORONTO · WEATHER ALERT" top-left — this template has no FREE ribbon
+  const topSize = Math.round(W * 0.032);
+  const topY    = pad * 0.75;
+  ctx.font      = `500 ${topSize}px Inter`;
+  ctx.fillStyle = acc;
+  ctx.fillText('TORONTO', pad, topY);
+  const sep = '  ·  ';
+  const toW = ctx.measureText('TORONTO').width;
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.fillText(sep, pad + toW, topY);
+  ctx.fillStyle = acc;
+  ctx.fillText('WEATHER ALERT', pad + toW + ctx.measureText(sep).width, topY);
+
+  // "CANCELLED" stamp — large rotated bordered stamp, the dominant visual element
+  const stampFontSize = Math.round(W * 0.125);
+  const stampY = H * 0.32;
+  ctx.font = `bold ${stampFontSize}px Inter`;
+  const stampText = 'CANCELLED';
+  const textW   = ctx.measureText(stampText).width;
+  const boxPadX = stampFontSize * 0.45;
+  const boxPadY = stampFontSize * 0.32;
+  const boxW    = textW + boxPadX * 2;
+  const boxH    = stampFontSize + boxPadY * 2;
+
+  ctx.save();
+  ctx.translate(W / 2, stampY);
+  ctx.rotate(-0.07);
+  ctx.lineWidth   = 6;
+  ctx.strokeStyle = acc;
+  ctx.beginPath();
+  ctx.roundRect(-boxW / 2, -boxH / 2, boxW, boxH, 14);
+  ctx.stroke();
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(-boxW / 2 + 10, -boxH / 2 + 10, boxW - 20, boxH - 20, 8);
+  ctx.stroke();
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle    = acc;
+  ctx.fillText(stampText, 0, 2);
+  ctx.textAlign    = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.restore();
+
+  // Reason line under the stamp
+  const reasonFontSize = Math.round(W * 0.036);
+  ctx.font      = `500 ${reasonFontSize}px Inter`;
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.textAlign = 'center';
+  const reasonY = stampY + boxH * 0.65;
+  ctx.fillText(reason, W / 2, reasonY);
+  ctx.textAlign = 'left';
+
+  // Affected event list — capped so rows never overflow the canvas
+  const listTop        = reasonY + reasonFontSize * 1.5;
+  const titleFontSize  = events.length > 3 ? Math.round(W * 0.036) : Math.round(W * 0.044);
+  const detailFontSize = Math.round(W * 0.028);
+  const innerPad       = Math.round(W * 0.02);
+  const rowH           = innerPad + titleFontSize * 1.1 + detailFontSize * 1.4 + innerPad;
+  const rowMargin      = pad;
+  const textX          = rowMargin + innerPad;
+  const maxTextW       = W - rowMargin * 2 - innerPad * 2;
+
+  const availH  = H - listTop - Math.round(pad * 0.8);
+  const maxRows = Math.max(1, Math.floor(availH / rowH));
+  const display = events.slice(0, maxRows);
+
+  display.forEach((event, i) => {
+    const rowTop = listTop + i * rowH;
+
+    ctx.fillStyle = i % 2 === 0 ? 'rgba(255,45,45,0.13)' : 'rgba(255,255,255,0.06)';
+    ctx.fillRect(rowMargin, rowTop, W - rowMargin * 2, rowH);
+
+    ctx.font      = `600 ${titleFontSize}px Inter`;
+    ctx.fillStyle = '#FFFFFF';
+    let title = event.title || event.artist || 'Unnamed Event';
+    if (ctx.measureText(title).width > maxTextW) {
+      while (title.length > 0 && ctx.measureText(title + '…').width > maxTextW) title = title.slice(0, -1);
+      title += '…';
+    }
+    ctx.fillText(title, textX, rowTop + innerPad + titleFontSize);
+
+    const p       = tzParts(event.dateTime);
+    const timeStr = `${p.hour}:${p.minute} ${p.dayPeriod}`;
+    ctx.font      = `${detailFontSize}px Inter`;
+    // Truncate only the venue/neighbourhood — the time always stays visible.
+    const suffix  = `  ·  ${timeStr}`;
+    const suffixW = ctx.measureText(suffix).width;
+    let place     = [event.venue, event.neighbourhood].filter(Boolean).join(', ');
+    if (ctx.measureText(place).width > maxTextW - suffixW) {
+      while (place.length > 0 && ctx.measureText(place + '…').width > maxTextW - suffixW) place = place.slice(0, -1);
+      place += '…';
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.fillText(place + suffix, textX, rowTop + innerPad + titleFontSize * 1.25 + detailFontSize);
+  });
+
+  if (events.length > display.length) {
+    const moreFontSize = detailFontSize;
+    ctx.font      = `500 ${moreFontSize}px Inter`;
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillText(`+ ${events.length - display.length} more`, textX, listTop + display.length * rowH + moreFontSize);
   }
 
   // Watermark — bottom-right
